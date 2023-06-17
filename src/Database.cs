@@ -2,7 +2,6 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -13,15 +12,19 @@ public sealed class Database
 {
     // Sqlite is thread safe by default, meaning it's safe to use the same connection across multiple threads: https://stackoverflow.com/a/39916593/10942966
     private readonly SqliteConnection _connection;
-    private readonly MemoryCache _cache;
     private readonly ILogger<Database> _logger;
     private readonly FrozenDictionary<PreparedCommandType, SqliteCommand> _preparedCommands;
 
     public Database(IConfiguration configuration)
     {
-        _connection = new SqliteConnection(configuration.GetConnectionString("Default"));
-        _cache = new MemoryCache(new MemoryCacheOptions(), (ILoggerFactory)Log.Logger);
         _logger = (ILogger<Database>)Log.Logger.ForContext<Database>();
+        _connection = new SqliteConnection(new SqliteConnectionStringBuilder()
+        {
+            Cache = SqliteCacheMode.Private,
+            DataSource = configuration.GetValue("Database:Path", "database.db"),
+            Mode = SqliteOpenMode.ReadWriteCreate,
+            Password = configuration.GetValue<string?>("Database:Password")
+        }.ToString());
 
         SqliteCommand addRedirectCommand = _connection.CreateCommand();
         addRedirectCommand.CommandText = "INSERT INTO `redirects` (`guild_id`, `channel_id`) VALUES ($guild_id, $channel_id);";
