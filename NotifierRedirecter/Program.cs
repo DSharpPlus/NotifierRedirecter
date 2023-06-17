@@ -43,50 +43,37 @@ public class Program
             return Task.CompletedTask;
         }
 
+
         ReadOnlySpan<char> span = e.Message.Content.AsSpan();
         if (span.IsWhiteSpace())
         {
             return Task.CompletedTask;
         }
 
-        HandleMentions(client, e, span, new());
-
-        return Task.CompletedTask;
-    }
-
-    public static void HandleMentions(DiscordClient client, MessageCreateEventArgs e, ReadOnlySpan<char> span, HashSet<ulong> alreadyRedirected)
-    {
-        Console.WriteLine(span.ToString());
-
         int firstAppearence = span.IndexOf('<');
         if (firstAppearence == -1)
         {
-            return;
+            return Task.CompletedTask;
         }
         if (firstAppearence != 0)
         {
             if (span[firstAppearence - 1] == '\\')
             {
-                return;
+                return Task.CompletedTask;
             }
         }
 
         int lastAppearence = span.IndexOf('>');
         if (lastAppearence == -1)
         {
-            return;
-        }
-
-        if (firstAppearence > lastAppearence)
-        {
-            goto label;
+            return Task.CompletedTask;
         }
 
         ReadOnlySpan<char> mention = span[firstAppearence..(lastAppearence + 1)];
         Console.WriteLine(mention.ToString());
         if (mention is not ['<', '@', .., '>'])
         {
-            goto label;
+            return Task.CompletedTask;
         }
 
         ReadOnlySpan<char> userIdSpan = mention[2..^1];
@@ -94,23 +81,13 @@ public class Program
         {
             if (userId == e.Author.Id)
             {
-                return;
+                return Task.CompletedTask;
             }
-
-            if (alreadyRedirected.Contains(userId))
-            {
-                goto label;
-            }
-            alreadyRedirected.Add(userId);
 
             _ = RedirectMention(client, e, userId);
         }
 
-    label:;
-        if (!span.IsEmpty || span.IsWhiteSpace())
-        {
-            HandleMentions(client, e, span[lastAppearence..], alreadyRedirected);
-        }
+        return Task.CompletedTask;
     }
 
     public static async Task RedirectMention(DiscordClient client, MessageCreateEventArgs e, ulong userId)
