@@ -59,16 +59,18 @@ public sealed class Program
         LoggerFactory = new LoggerFactory().AddSerilog(configuration.CreateLogger());
         Logger = LoggerFactory.CreateLogger<Program>();
 
-        if (Configuration.GetValue<string>("Token") is null)
+        if (Configuration.GetValue<string>("token") is null)
         {
             Logger.LogCritical("Discord token parameter is required but not found.");
             Environment.Exit(1);
         }
-        else if (Configuration.GetConnectionString("Database") is null)
+#if DEBUG
+        else if (Configuration.GetValue<ulong>("debug_guild_id") is 0)
         {
-            Logger.LogCritical("Database connection string parameter is required but not found.");
+            Logger.LogCritical("Debug guild ID parameter is required but not found.");
             Environment.Exit(1);
         }
+#endif
 
         Database = new(Configuration);
     }

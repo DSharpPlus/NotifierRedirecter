@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -17,12 +18,20 @@ public sealed class Database
     public Database(IConfiguration configuration)
     {
         _logger = Program.LoggerFactory.CreateLogger<Database>();
+        string? dataSource = configuration.GetValue("database:path", "database.db");
+        if (string.IsNullOrWhiteSpace(dataSource))
+        {
+            _logger.LogCritical("Database path is not set.");
+            Environment.Exit(1);
+            return; // For the compiler and nullability
+        }
+
         _connection = new SqliteConnection(new SqliteConnectionStringBuilder()
         {
             Cache = SqliteCacheMode.Private,
-            DataSource = configuration.GetValue("Database:Path", "database.db"),
+            DataSource = dataSource,
             Mode = SqliteOpenMode.ReadWriteCreate,
-            Password = configuration.GetValue<string?>("Database:Password")
+            Password = configuration.GetValue<string?>("database:password")
         }.ToString());
 
         SqliteCommand addRedirectCommand = _connection.CreateCommand();
