@@ -5,13 +5,12 @@ using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using DSharpPlus.Exceptions;
 using Microsoft.Extensions.Logging;
-using Serilog;
 
 namespace NotifierRedirecter.Events;
 
 public sealed partial class MessageCreatedEventHandler
 {
-    private static readonly ILogger<MessageCreatedEventHandler> Logger = (ILogger<MessageCreatedEventHandler>)Log.Logger.ForContext<MessageCreatedEventHandler>();
+    private static readonly ILogger<MessageCreatedEventHandler> Logger = Program.LoggerFactory.CreateLogger<MessageCreatedEventHandler>();
 
     public static async Task ExecuteAsync(DiscordClient _, MessageCreateEventArgs eventArgs)
     {

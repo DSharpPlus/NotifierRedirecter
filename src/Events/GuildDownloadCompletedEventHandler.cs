@@ -3,13 +3,12 @@ using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using Microsoft.Extensions.Logging;
-using Serilog;
 
 namespace NotifierRedirecter.Events;
 
 public sealed class GuildDownloadCompletedEventHandler
 {
-    private static readonly ILogger<GuildDownloadCompletedEventHandler> Logger = (ILogger<GuildDownloadCompletedEventHandler>)Log.Logger.ForContext<GuildDownloadCompletedEventHandler>();
+    private static readonly ILogger<GuildDownloadCompletedEventHandler> Logger = Program.LoggerFactory.CreateLogger<GuildDownloadCompletedEventHandler>();
 
     public static Task ExecuteAsync(DiscordClient _, GuildDownloadCompletedEventArgs eventArgs)
     {

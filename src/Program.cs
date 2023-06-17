@@ -17,6 +17,7 @@ public sealed class Program
 {
     internal static readonly IConfiguration Configuration;
     internal static readonly Database Database;
+    internal static readonly ILoggerFactory LoggerFactory;
     private static readonly ILogger<Program> Logger;
 
     static Program()
@@ -55,8 +56,8 @@ public sealed class Program
                 formatProvider: CultureInfo.InvariantCulture
             );
 
-        Log.Logger = configuration.CreateLogger();
-        Logger = (ILogger<Program>)Log.Logger.ForContext<Program>();
+        LoggerFactory = new LoggerFactory().AddSerilog(configuration.CreateLogger());
+        Logger = LoggerFactory.CreateLogger<Program>();
 
         if (Configuration.GetValue<string>("Token") is null)
         {

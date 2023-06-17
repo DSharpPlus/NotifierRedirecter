@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Serilog;
 
 namespace NotifierRedirecter;
 
@@ -17,7 +16,7 @@ public sealed class Database
 
     public Database(IConfiguration configuration)
     {
-        _logger = (ILogger<Database>)Log.Logger.ForContext<Database>();
+        _logger = Program.LoggerFactory.CreateLogger<Database>();
         _connection = new SqliteConnection(new SqliteConnectionStringBuilder()
         {
             Cache = SqliteCacheMode.Private,
