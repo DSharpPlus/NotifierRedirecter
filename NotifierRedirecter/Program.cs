@@ -3,7 +3,7 @@ using DSharpPlus;
 
 namespace NotifierRedirecter;
 
-public abstract class Program
+public class Program
 {
     public static Config JsonConfig { get; private set; } = null!;
 
