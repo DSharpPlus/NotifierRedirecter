@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
 using DSharpPlus;
+using DSharpPlus.CommandAll;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NotifierRedirecter.Events;
@@ -80,6 +81,9 @@ public sealed class Program
             LoggerFactory = (ILoggerFactory)Logger,
             LogUnknownEvents = false
         });
+
+        CommandAllExtension commandAll = client.UseCommandAll(new CommandAllConfiguration() { DebugGuildId = Configuration.GetValue<ulong>("DebugGuildId") });
+        commandAll.AddCommands(typeof(Program).Assembly);
 
         client.MessageCreated += MessageCreatedEventHandler.ExecuteAsync;
         client.GuildDownloadCompleted += GuildDownloadCompletedEventHandler.ExecuteAsync;

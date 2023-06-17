@@ -38,8 +38,7 @@ public sealed class Database
         removeRedirectCommand.Parameters.Add("$channel_id");
 
         SqliteCommand addIgnoredUserCommand = _connection.CreateCommand();
-        addIgnoredUserCommand.CommandText = "INSERT INTO `ignored_users` (`guild_id`, `user_id`, `channel_id`) VALUES ($guild_id, $user_id, $channel_id);";
-        addIgnoredUserCommand.Parameters.Add("$guild_id");
+        addIgnoredUserCommand.CommandText = "INSERT INTO `ignored_users` (`user_id`, `channel_id`) VALUES ($guild_id, $user_id, $channel_id);";
         addIgnoredUserCommand.Parameters.Add("$user_id");
         addIgnoredUserCommand.Parameters.Add("$channel_id");
 
@@ -49,8 +48,7 @@ public sealed class Database
         isIgnoredUserCommand.Parameters.Add("$channel_id");
 
         SqliteCommand removeIgnoredUserCommand = _connection.CreateCommand();
-        removeIgnoredUserCommand.CommandText = "DELETE FROM `ignored_users` WHERE `guild_id` = $guild_id AND `user_id` = $user_id AND `channel_id` = $channel_id;";
-        removeIgnoredUserCommand.Parameters.Add("$guild_id");
+        removeIgnoredUserCommand.CommandText = "DELETE FROM `ignored_users` WHERE `user_id` = $user_id AND `channel_id` = $channel_id;";
         removeIgnoredUserCommand.Parameters.Add("$user_id");
         removeIgnoredUserCommand.Parameters.Add("$channel_id");
 
@@ -80,7 +78,6 @@ public sealed class Database
             );
 
             CREATE TABLE IF NOT EXISTS `ignored_users` (
-                `guild_id` INTEGER NOT NULL,
                 `user_id` INTEGER NOT NULL,
                 `channel_id` INTEGER,
                 PRIMARY KEY (`user_id`, `channel_id`)
@@ -121,12 +118,11 @@ public sealed class Database
         return command.ExecuteNonQueryAsync();
     }
 
-    public Task AddIgnoredUserAsync(ulong guildId, ulong userId, ulong? channelId)
+    public Task AddIgnoredUserAsync(ulong userId, ulong? channelId)
     {
         SqliteCommand command = _preparedCommands[PreparedCommandType.AddIgnoredUser];
-        command.Parameters[0].Value = guildId;
-        command.Parameters[1].Value = userId;
-        command.Parameters[2].Value = channelId;
+        command.Parameters[0].Value = userId;
+        command.Parameters[1].Value = channelId;
         return command.ExecuteNonQueryAsync();
     }
 
@@ -138,12 +134,11 @@ public sealed class Database
         return command.ExecuteScalarAsync().ContinueWith(task => task.Result is not null);
     }
 
-    public Task RemoveIgnoredUserAsync(ulong guildId, ulong userId, ulong? channelId)
+    public Task RemoveIgnoredUserAsync(ulong userId, ulong? channelId)
     {
         SqliteCommand command = _preparedCommands[PreparedCommandType.RemoveIgnoredUser];
-        command.Parameters[0].Value = guildId;
-        command.Parameters[1].Value = userId;
-        command.Parameters[2].Value = channelId;
+        command.Parameters[0].Value = userId;
+        command.Parameters[1].Value = channelId;
         return command.ExecuteNonQueryAsync();
     }
 
