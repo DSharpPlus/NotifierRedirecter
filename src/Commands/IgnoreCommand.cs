@@ -6,6 +6,7 @@ using DSharpPlus.CommandAll.Attributes;
 using DSharpPlus.CommandAll.Commands;
 using DSharpPlus.CommandAll.Commands.Checks;
 using DSharpPlus.Entities;
+using System.Linq;
 
 namespace NotifierRedirecter.Commands;
 
@@ -55,9 +56,9 @@ public sealed class IgnoreCommand : BaseCommand
         return ignoredChannels.Count switch
         {
             0 => context.ReplyAsync("You are not ignoring any channels."),
-            1 when ignoredChannels[0] == 0 => context.ReplyAsync("You are ignoring all channels."),
             1 => context.ReplyAsync($"You are ignoring <#{ignoredChannels[0]}>."),
             2 => context.ReplyAsync($"You are ignoring <#{ignoredChannels[0]}> and <#{ignoredChannels[1]}>."),
+            _ when ignoredChannels.Any(channelId => channelId == 0) => context.ReplyAsync("You are ignoring all channels."),
             _ => context.ReplyAsync(FormatChannelMentions(ignoredChannels))
         };
     }
