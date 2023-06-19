@@ -74,7 +74,7 @@ public sealed class Program
         LoggerFactory = Services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
         Logger = LoggerFactory.CreateLogger<Program>();
 
-        if (Configuration.GetValue<string>("discord:token") is null)
+        if (string.IsNullOrWhiteSpace(Configuration.GetValue<string>("discord:token")))
         {
             Logger.LogCritical("Discord token parameter is required but not found.");
             Environment.Exit(1);
