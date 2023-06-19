@@ -8,3 +8,5 @@ services:
     env_file: .env
     volumes:
       - ./database.db:/src/database.db
+      - ./logs:/src/logs
+      - ./res/config.json:/src/config.json
