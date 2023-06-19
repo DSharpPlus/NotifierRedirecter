@@ -61,6 +61,20 @@ public sealed class Database
         command.ExecuteNonQuery();
     }
 
+    public IReadOnlyList<ulong> ListRedirects(ulong guildId)
+    {
+        SqliteCommand command = _preparedCommands[PreparedCommandType.ListRedirects];
+        command.Parameters[0].Value = guildId;
+        using SqliteDataReader reader = command.ExecuteReader();
+        List<ulong> channels = new();
+        while (reader.Read())
+        {
+            channels.Add(reader.GetFieldValue<ulong>(0));
+        }
+
+        return channels;
+    }
+
     public void AddIgnoredUser(ulong userId, ulong guildId, ulong? channelId)
     {
         SqliteCommand command = _preparedCommands[PreparedCommandType.AddIgnoredUser];
@@ -75,7 +89,7 @@ public sealed class Database
         SqliteCommand command = _preparedCommands[PreparedCommandType.IsIgnoredUser];
         command.Parameters[0].Value = userId;
         command.Parameters[1].Value = guildId;
-        command.Parameters[2].Value = (object?)channelId ?? DBNull.Value;
+        command.Parameters[2].Value = channelId ?? 0;
         using SqliteDataReader reader = command.ExecuteReader();
         return reader.HasRows && reader.Read() && reader.GetBoolean(0);
     }
@@ -85,17 +99,31 @@ public sealed class Database
         SqliteCommand command = _preparedCommands[PreparedCommandType.RemoveIgnoredUser];
         command.Parameters[0].Value = userId;
         command.Parameters[1].Value = guildId;
-        command.Parameters[2].Value = (object?)channelId ?? DBNull.Value;
+        command.Parameters[2].Value = channelId ?? 0;
         command.ExecuteNonQuery();
+    }
+
+    public IReadOnlyList<ulong> ListIgnoredUserChannels(ulong userId, ulong guildId)
+    {
+        SqliteCommand command = _preparedCommands[PreparedCommandType.ListIgnoredUserChannels];
+        command.Parameters[0].Value = userId;
+        command.Parameters[1].Value = guildId;
+        using SqliteDataReader reader = command.ExecuteReader();
+        List<ulong> channels = new();
+        while (reader.Read())
+        {
+            channels.Add(reader.GetFieldValue<ulong>(0));
+        }
+
+        return channels;
     }
 
     private FrozenDictionary<PreparedCommandType, SqliteCommand> PrepareCommands()
     {
-        static SqliteParameter CreateParameter(SqliteCommand command, string name, bool nullable = false)
+        static SqliteParameter CreateParameter(SqliteCommand command, string name)
         {
             SqliteParameter parameter = command.CreateParameter();
             parameter.ParameterName = name;
-            parameter.IsNullable = nullable;
             parameter.SqliteType = SqliteType.Integer; // Can be a parameter, but hardcoding integer due to lack of a use case
             parameter.Size = 8; // All of our integers will be int-64
             return parameter;
@@ -115,32 +143,43 @@ public sealed class Database
         removeRedirectCommand.Parameters.Add(CreateParameter(removeRedirectCommand, "$guild_id"));
         removeRedirectCommand.Parameters.Add(CreateParameter(removeRedirectCommand, "$channel_id"));
 
+        SqliteCommand listRedirectsCommand = _connection.CreateCommand();
+        listRedirectsCommand.CommandText = "SELECT `channel_id` FROM `redirects` WHERE `guild_id` = $guild_id;";
+        listRedirectsCommand.Parameters.Add(CreateParameter(listRedirectsCommand, "$guild_id"));
+
         SqliteCommand addIgnoredUserCommand = _connection.CreateCommand();
         addIgnoredUserCommand.CommandText = "INSERT INTO `ignored_users` (`user_id`, `guild_id`, `channel_id`) VALUES ($user_id, $guild_id, $channel_id);";
         addIgnoredUserCommand.Parameters.Add(CreateParameter(addIgnoredUserCommand, "$user_id"));
         addIgnoredUserCommand.Parameters.Add(CreateParameter(addIgnoredUserCommand, "$guild_id"));
-        addIgnoredUserCommand.Parameters.Add(CreateParameter(addIgnoredUserCommand, "$channel_id", true));
+        addIgnoredUserCommand.Parameters.Add(CreateParameter(addIgnoredUserCommand, "$channel_id"));
 
         SqliteCommand isIgnoredUserCommand = _connection.CreateCommand();
-        isIgnoredUserCommand.CommandText = "SELECT EXISTS(SELECT 1 FROM `ignored_users` WHERE `user_id` = $user_id AND `guild_id` = $guild_id AND (channel_id IS NULL OR `channel_id` = $channel_id) LIMIT 1);";
+        isIgnoredUserCommand.CommandText = "SELECT EXISTS(SELECT 1 FROM `ignored_users` WHERE `user_id` = $user_id AND `guild_id` = $guild_id AND (channel_id = 0 NULL OR `channel_id` = $channel_id) LIMIT 1);";
         isIgnoredUserCommand.Parameters.Add(CreateParameter(isIgnoredUserCommand, "$user_id"));
         isIgnoredUserCommand.Parameters.Add(CreateParameter(isIgnoredUserCommand, "$guild_id"));
-        isIgnoredUserCommand.Parameters.Add(CreateParameter(isIgnoredUserCommand, "$channel_id", true));
+        isIgnoredUserCommand.Parameters.Add(CreateParameter(isIgnoredUserCommand, "$channel_id"));
 
         SqliteCommand removeIgnoredUserCommand = _connection.CreateCommand();
-        removeIgnoredUserCommand.CommandText = "DELETE FROM `ignored_users` WHERE `user_id` = $user_id AND `guild_id` = $guild_id AND (channel_id IS NULL OR `channel_id` = $channel_id)";
+        removeIgnoredUserCommand.CommandText = "DELETE FROM `ignored_users` WHERE `user_id` = $user_id AND `guild_id` = $guild_id AND (channel_id = 0 OR `channel_id` = $channel_id)";
         removeIgnoredUserCommand.Parameters.Add(CreateParameter(removeIgnoredUserCommand, "$user_id"));
         removeIgnoredUserCommand.Parameters.Add(CreateParameter(removeIgnoredUserCommand, "$guild_id"));
-        removeIgnoredUserCommand.Parameters.Add(CreateParameter(removeIgnoredUserCommand, "$channel_id", true));
+        removeIgnoredUserCommand.Parameters.Add(CreateParameter(removeIgnoredUserCommand, "$channel_id"));
+
+        SqliteCommand listIgnoredUserChannels = _connection.CreateCommand();
+        listIgnoredUserChannels.CommandText = "SELECT `channel_id` FROM `ignored_users` WHERE `user_id` = $user_id AND `guild_id` = $guild_id;";
+        listIgnoredUserChannels.Parameters.Add(CreateParameter(listIgnoredUserChannels, "$user_id"));
+        listIgnoredUserChannels.Parameters.Add(CreateParameter(listIgnoredUserChannels, "$guild_id"));
 
         return new Dictionary<PreparedCommandType, SqliteCommand>
         {
             [PreparedCommandType.AddRedirect] = addRedirectCommand,
             [PreparedCommandType.IsRedirect] = isRedirectCommand,
             [PreparedCommandType.RemoveRedirect] = removeRedirectCommand,
+            [PreparedCommandType.ListRedirects] = listRedirectsCommand,
             [PreparedCommandType.AddIgnoredUser] = addIgnoredUserCommand,
             [PreparedCommandType.IsIgnoredUser] = isIgnoredUserCommand,
-            [PreparedCommandType.RemoveIgnoredUser] = removeIgnoredUserCommand
+            [PreparedCommandType.RemoveIgnoredUser] = removeIgnoredUserCommand,
+            [PreparedCommandType.ListIgnoredUserChannels] = listIgnoredUserChannels
         }.ToFrozenDictionary();
     }
 
@@ -168,7 +207,7 @@ public sealed class Database
             CREATE TABLE IF NOT EXISTS `ignored_users` (
                 `user_id` INTEGER NOT NULL,
                 `guild_id` INTEGER NOT NULL,
-                `channel_id` INTEGER,
+                `channel_id` INTEGER NOT NULL,
                 PRIMARY KEY (`user_id`, `guild_id`, `channel_id`)
             );
         ";
@@ -189,8 +228,10 @@ public sealed class Database
         AddRedirect,
         IsRedirect,
         RemoveRedirect,
+        ListRedirects,
         AddIgnoredUser,
         IsIgnoredUser,
         RemoveIgnoredUser,
+        ListIgnoredUserChannels
     }
 }
