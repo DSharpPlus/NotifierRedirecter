@@ -8,6 +8,7 @@ using DSharpPlus.Exceptions;
 using Humanizer;
 using System.Linq;
 using System;
+using DSharpPlus.CommandAll.Commands.Checks;
 
 namespace NotifierRedirecter.Events;
 
@@ -38,18 +39,26 @@ public sealed class CommandErroredEventHandler
                         continue;
                     }
 
-                    embedBuilder.AddField(check.Check.GetType().Name, check.Exception?.Message ?? "Failed.", false);
+                    embedBuilder = check.Check switch
+                    {
+                        RequireGuildCheckAttribute => embedBuilder.AddField("Guild Only", "This command can only be used in a guild.", false),
+                        RequirePermissionsCheckAttribute permissionsCheck when permissionsCheck.PermissionType == PermissionCheckType.Bot => embedBuilder.AddField("I'm Missing Permissions", string.Join(", ", permissionsCheck.Permissions.ToPermissionString()), false),
+                        RequirePermissionsCheckAttribute permissionsCheck when permissionsCheck.PermissionType == PermissionCheckType.User => embedBuilder.AddField("You're Missing Permissions", string.Join(", ", permissionsCheck.Permissions.ToPermissionString()), false),
+                        _ => embedBuilder.AddField(check.Check.GetType().Name, check.Exception?.Message ?? "Failed.", false)
+                    };
                 }
-                return eventArgs.Context.ReplyAsync(new DiscordMessageBuilder().AddEmbed(embedBuilder));
+                break;
             case DiscordException discordError:
                 embedBuilder.AddField("HTTP Code", discordError.WebResponse.ResponseCode.ToString(), true);
                 embedBuilder.AddField("Error Message", discordError.JsonMessage, true);
-                return eventArgs.Context.ReplyAsync(new DiscordMessageBuilder().AddEmbed(embedBuilder));
+                break;
             default:
                 embedBuilder.AddField("Error Message", eventArgs.Exception.Message, true);
                 embedBuilder.AddField("Stack Trace", Formatter.BlockCode(FormatStackTrace(eventArgs.Exception.StackTrace).Truncate(1014, "…"), "cs"), false);
-                return eventArgs.Context.ReplyAsync(new DiscordMessageBuilder().AddEmbed(embedBuilder));
+                break;
         }
+
+        return eventArgs.Context.ReplyAsync(new DiscordMessageBuilder().AddEmbed(embedBuilder));
     }
 
     private static string FormatStackTrace(string? text) => text == null
