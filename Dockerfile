@@ -1,19 +1,14 @@
-FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0-preview-alpine AS build
+ARG VERSION=0.1.0
 WORKDIR /src
 
-COPY ./ ./
+COPY ./ /src
+RUN dotnet publish -c Release -r linux-musl-x64 -p:Version=$VERSION
 
-RUN dotnet restore ./NotifierRedirecter/NotifierRedirecter.csproj
+FROM alpine:latest
+WORKDIR /src
 
-RUN dotnet build "NotifierRedirecter/NotifierRedirecter.csproj" -c Release -o /app
+COPY --from=build /src/src/bin/Release/net8.0/linux-musl-x64/publish/ /src
+RUN apk upgrade --update-cache --available && apk add openssl icu-libs && rm -rf /var/cache/apk/*
 
-FROM build AS publish
-RUN dotnet publish "NotifierRedirecter/NotifierRedirecter.csproj" -c Release -o /app
-
-FROM mcr.microsoft.com/dotnet/runtime:7.0
-WORKDIR /app
-
-COPY --from=publish /app .
-
-EXPOSE 8008
-ENTRYPOINT ["dotnet", "NotifierRedirecter.dll"]
+ENTRYPOINT /src/NotifierRedirecter

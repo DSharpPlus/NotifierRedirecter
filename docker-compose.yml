@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  notifier_redirecter:
+    #build: .
+    image: ghcr.io/instellate/notifierredirecter:latest
+    restart: unless-stopped
+    environment:
+    - NotifierRedirecter_Database__DatabaseName="database.db"
+    - NotifierRedirecter_Database__Password=""
+    - NotifierRedirecter_Discord__Debug_Guild_Id=""
+    - NotifierRedirecter_Discord__Token=""
+    - NotifierRedirecter_Discord__Prefixes__0="n!"
+    - NotifierRedirecter_Discord__Prefixes__1="n?"
+    - NotifierRedirecter_Logging__Level="Debug"
+    - NotifierRedirecter_Logging__Overrides__DSharpPlus="Information"
+  volumes:
+    - ./database.db:/src/database.db

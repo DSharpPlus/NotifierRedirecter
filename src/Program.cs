@@ -31,9 +31,8 @@ public sealed class Program
             .Build();
 
         const string loggingFormat = "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] [{Level:u4}] {SourceContext}: {Message:lj}{NewLine}{Exception}";
-        LoggerConfiguration configuration = new LoggerConfiguration()
-            .MinimumLevel.Is(Configuration.GetValue("Logging:Level", LogEventLevel.Debug))
-            .MinimumLevel.Override("DSharpPlus", LogEventLevel.Information)
+        LoggerConfiguration loggerConfiguration = new LoggerConfiguration()
+            .MinimumLevel.Is(Configuration.GetValue("logging:level", LogEventLevel.Debug))
             .WriteTo.Console(outputTemplate: loggingFormat, formatProvider: CultureInfo.InvariantCulture, theme: new AnsiConsoleTheme(new Dictionary<ConsoleThemeStyle, string>
             {
                 [ConsoleThemeStyle.Text] = "\x1b[0m",
@@ -60,17 +59,28 @@ public sealed class Program
                 formatProvider: CultureInfo.InvariantCulture
             );
 
-        Services = new ServiceCollection().AddLogging(builder => builder.AddSerilog(configuration.CreateLogger()));
+        // Allow specific namespace log level overrides, which allows us to hush output from things like the database basic SELECT queries on the Information level.
+        foreach (IConfigurationSection logOverride in Configuration.GetSection("logging:overrides").GetChildren())
+        {
+            if (logOverride.Value is null || !Enum.TryParse(logOverride.Value, out LogEventLevel logEventLevel))
+            {
+                continue;
+            }
+
+            loggerConfiguration.MinimumLevel.Override(logOverride.Key, logEventLevel);
+        }
+
+        Services = new ServiceCollection().AddLogging(builder => builder.AddSerilog(loggerConfiguration.CreateLogger()));
         LoggerFactory = Services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
         Logger = LoggerFactory.CreateLogger<Program>();
 
-        if (Configuration.GetValue<string>("token") is null)
+        if (Configuration.GetValue<string>("discord:token") is null)
         {
             Logger.LogCritical("Discord token parameter is required but not found.");
             Environment.Exit(1);
         }
 #if DEBUG
-        else if (Configuration.GetValue<ulong>("debug_guild_id") is 0)
+        else if (Configuration.GetValue<ulong>("discord:debug_guild_id") is 0)
         {
             Logger.LogCritical("Debug guild ID parameter is required but not found.");
             Environment.Exit(1);
@@ -84,7 +94,7 @@ public sealed class Program
     {
         DiscordClient client = new(new DiscordConfiguration()
         {
-            Token = Configuration.GetValue<string>("Token")!,
+            Token = Configuration.GetValue<string>("discord:token")!,
             Intents = DiscordIntents.Guilds | DiscordIntents.GuildMessages | DiscordIntents.MessageContents,
             LoggerFactory = LoggerFactory,
             LogUnknownEvents = false
@@ -92,8 +102,8 @@ public sealed class Program
 
         CommandAllExtension commandAll = client.UseCommandAll(new CommandAllConfiguration(Services)
         {
-            DebugGuildId = Configuration.GetValue<ulong>("debug_guild_id"),
-            PrefixParser = new PrefixParser(Configuration.GetSection("prefixes").Get<string[]>() ?? new[] { "n!" })
+            DebugGuildId = Configuration.GetValue<ulong>("discord:debug_guild_id"),
+            PrefixParser = new PrefixParser(Configuration.GetSection("discord:prefixes").Get<string[]>() ?? new[] { "n!" })
         });
         commandAll.AddCommands(typeof(Program).Assembly);
         commandAll.CommandErrored += CommandErroredEventHandler.ExecuteAsync;

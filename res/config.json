@@ -1,8 +1,20 @@
 {
-    "token": "token",
-    "debug_guild_id": "guild_id",
     "database": {
         "path": "database.db",
         "password": ""
+    },
+    "discord": {
+        "debug_guild_id": "",
+        "token": "",
+        "prefixes": [
+            "n!",
+            "n?"
+        ]
+    },
+    "logging": {
+        "level": "Debug",
+        "overrides": {
+            "DSharpPlus": "Information"
+        }
     }
 }
