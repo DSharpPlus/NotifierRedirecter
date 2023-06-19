@@ -1,4 +1,8 @@
 {
-    "token": "",
-    "database_path": "./database.db"
+    "token": "token",
+    "debug_guild_id": "guild_id",
+    "database": {
+        "path": "database.db",
+        "password": ""
+    }
 }
