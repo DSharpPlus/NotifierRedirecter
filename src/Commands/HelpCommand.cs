@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using DSharpPlus;
 using DSharpPlus.CommandAll.Attributes;
 using DSharpPlus.CommandAll.Commands;
-using DSharpPlus.CommandAll.Commands.Checks;
 using DSharpPlus.CommandAll.Commands.Enums;
 using DSharpPlus.Entities;
 
@@ -16,13 +15,13 @@ namespace NotifierRedirecter.Commands;
 public sealed class HelpCommand : BaseCommand
 {
     [Command("help"), Description("Displays which commands are available, or displays detailed information for a specified command.")]
-    [RequireGuildCheck, SuppressMessage("Roslyn", "IDE0046", Justification = "Ternary operator rabbit hole.")]
+    [SuppressMessage("Roslyn", "IDE0046", Justification = "Ternary operator rabbit hole.")]
     public static Task ExecuteAsync(CommandContext context, [Description("Which command to show information on. If empty, all commands are shown."), RemainingText] string? command = null)
     {
         IReadOnlyDictionary<string, Command> commands = context.Extension.CommandManager.GetCommands();
         if (string.IsNullOrWhiteSpace(command))
         {
-            return context.ReplyAsync(GenerateCommandListEmbed(context.Member!, commands.Values));
+            return context.ReplyAsync(GenerateCommandListEmbed(context.User, commands.Values));
         }
         else if (!commands.TryGetValue(command, out Command? commandValue))
         {
@@ -30,17 +29,17 @@ public sealed class HelpCommand : BaseCommand
         }
         else
         {
-            return context.ReplyAsync(GenerateCommandEmbed(context.Member!, commandValue));
+            return context.ReplyAsync(GenerateCommandEmbed(context.User, commandValue));
         }
     }
 
-    private static DiscordEmbedBuilder GenerateCommandListEmbed(DiscordMember author, IEnumerable<Command> commands)
+    private static DiscordEmbedBuilder GenerateCommandListEmbed(DiscordUser author, IEnumerable<Command> commands)
     {
         DiscordEmbedBuilder embed = new DiscordEmbedBuilder()
             .WithTitle("Commands")
             .WithDescription("Use `/help <command>` for more information on a command.")
             .WithColor(DiscordColor.Goldenrod)
-            .WithAuthor(author!.DisplayName, author.AvatarUrl, author.AvatarUrl);
+            .WithAuthor(author.Username, author.AvatarUrl, author.AvatarUrl);
 
         foreach (Command command in commands)
         {
@@ -56,13 +55,13 @@ public sealed class HelpCommand : BaseCommand
         return embed;
     }
 
-    private static DiscordEmbedBuilder GenerateCommandEmbed(DiscordMember author, Command command)
+    private static DiscordEmbedBuilder GenerateCommandEmbed(DiscordUser author, Command command)
     {
         DiscordEmbedBuilder embed = new DiscordEmbedBuilder()
             .WithTitle(command.FullName)
             .WithDescription(command.Description)
             .WithColor(DiscordColor.Goldenrod)
-            .WithAuthor(author!.DisplayName, author.AvatarUrl, author.AvatarUrl);
+            .WithAuthor(author.Username, author.AvatarUrl, author.AvatarUrl);
 
         if (command.Subcommands.Any())
         {
