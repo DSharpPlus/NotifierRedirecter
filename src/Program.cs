@@ -4,7 +4,9 @@ using System.Globalization;
 using System.Threading.Tasks;
 using DSharpPlus;
 using DSharpPlus.CommandAll;
+using DSharpPlus.CommandAll.Parsers;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NotifierRedirecter.Events;
 using Serilog;
@@ -15,6 +17,7 @@ namespace NotifierRedirecter;
 
 public sealed class Program
 {
+    internal static readonly IServiceCollection Services;
     internal static readonly IConfiguration Configuration;
     internal static readonly Database Database;
     internal static readonly ILoggerFactory LoggerFactory;
@@ -30,6 +33,7 @@ public sealed class Program
         const string loggingFormat = "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] [{Level:u4}] {SourceContext}: {Message:lj}{NewLine}{Exception}";
         LoggerConfiguration configuration = new LoggerConfiguration()
             .MinimumLevel.Is(Configuration.GetValue("Logging:Level", LogEventLevel.Debug))
+            .MinimumLevel.Override("DSharpPlus", LogEventLevel.Information)
             .WriteTo.Console(outputTemplate: loggingFormat, formatProvider: CultureInfo.InvariantCulture, theme: new AnsiConsoleTheme(new Dictionary<ConsoleThemeStyle, string>
             {
                 [ConsoleThemeStyle.Text] = "\x1b[0m",
@@ -56,7 +60,8 @@ public sealed class Program
                 formatProvider: CultureInfo.InvariantCulture
             );
 
-        LoggerFactory = new LoggerFactory().AddSerilog(configuration.CreateLogger());
+        Services = new ServiceCollection().AddLogging(builder => builder.AddSerilog(configuration.CreateLogger()));
+        LoggerFactory = Services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
         Logger = LoggerFactory.CreateLogger<Program>();
 
         if (Configuration.GetValue<string>("token") is null)
@@ -75,22 +80,29 @@ public sealed class Program
         Database = new(Configuration);
     }
 
-    public static Task Main()
+    public static async Task Main()
     {
+        await Database.InitializeAsync();
         DiscordClient client = new(new DiscordConfiguration()
         {
             Token = Configuration.GetValue<string>("Token")!,
             Intents = DiscordIntents.Guilds | DiscordIntents.GuildMessages | DiscordIntents.MessageContents,
-            LoggerFactory = (ILoggerFactory)Logger,
+            LoggerFactory = LoggerFactory,
             LogUnknownEvents = false
         });
 
-        CommandAllExtension commandAll = client.UseCommandAll(new CommandAllConfiguration() { DebugGuildId = Configuration.GetValue<ulong>("DebugGuildId") });
+        CommandAllExtension commandAll = client.UseCommandAll(new CommandAllConfiguration(Services)
+        {
+            DebugGuildId = Configuration.GetValue<ulong>("debug_guild_id"),
+            PrefixParser = new PrefixParser(Configuration.GetSection("prefixes").Get<string[]>() ?? new[] { "n!" })
+        });
         commandAll.AddCommands(typeof(Program).Assembly);
+        commandAll.CommandErrored += CommandErroredEventHandler.ExecuteAsync;
 
         client.MessageCreated += MessageCreatedEventHandler.ExecuteAsync;
         client.GuildDownloadCompleted += GuildDownloadCompletedEventHandler.ExecuteAsync;
         Logger.LogInformation("Connecting to Discord...");
-        return Database.InitializeAsync().ContinueWith(_ => client.ConnectAsync()).ContinueWith(_ => Task.Delay(-1));
+        await client.ConnectAsync();
+        await Task.Delay(-1);
     }
 }
