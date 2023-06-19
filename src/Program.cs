@@ -82,7 +82,6 @@ public sealed class Program
 
     public static async Task Main()
     {
-        await Database.InitializeAsync();
         DiscordClient client = new(new DiscordConfiguration()
         {
             Token = Configuration.GetValue<string>("Token")!,

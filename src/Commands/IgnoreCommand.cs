@@ -11,29 +11,36 @@ namespace NotifierRedirecter.Commands;
 public sealed class IgnoreCommand : BaseCommand
 {
     [Command("add"), Description("Disable notifications from me.")]
-    public static async Task AddAsync(CommandContext context, [Description("Which channel to stop receiving notifications in. If empty, I'll stop sending notifications entirely")] DiscordChannel? channel = null)
+    public static Task AddAsync(CommandContext context, [Description("Which channel to stop receiving notifications in. If empty, I'll stop sending notifications entirely")] DiscordChannel? channel = null)
     {
-        await Program.Database.AddIgnoredUserAsync(context.User.Id, channel?.Id);
-        await context.ReplyAsync(channel is null
+        if (Program.Database.IsIgnoredUser(context.User.Id, context.Guild!.Id, channel?.Id))
+        {
+            return context.ReplyAsync(channel is null
+                ? "You are already on the global ignore list."
+                : $"You are already ignored in {channel.Mention}."
+            );
+        }
+
+        Program.Database.AddIgnoredUser(context.User.Id, context.Guild.Id, channel?.Id);
+        return context.ReplyAsync(channel is null
             ? "Added you to the global ignore list. You will no longer receive notifications from me."
             : $"You will no longer be notified when you're pinged in {channel.Mention}."
         );
     }
 
     [Command("remove"), Description("Enable notifications from me.")]
-    public static async Task RemoveAsync(CommandContext context, [Description("Which channel to start receiving notifications in. If empty, I'll start sending notifications again")] DiscordChannel? channel = null)
+    public static Task RemoveAsync(CommandContext context, [Description("Which channel to start receiving notifications in. If empty, I'll start sending notifications again")] DiscordChannel? channel = null)
     {
-        if (!await Program.Database.IsIgnoredUserAsync(context.User.Id, channel?.Id))
+        if (!Program.Database.IsIgnoredUser(context.User.Id, context.Guild!.Id, channel?.Id))
         {
-            await context.ReplyAsync(channel is null
+            return context.ReplyAsync(channel is null
                 ? "You are not on the global ignore list."
                 : $"You are not ignored in {channel.Mention}."
             );
-            return;
         }
 
-        await Program.Database.RemoveIgnoredUserAsync(context.User.Id, channel?.Id);
-        await context.ReplyAsync(channel is null
+        Program.Database.RemoveIgnoredUser(context.User.Id, context.Guild.Id, channel?.Id);
+        return context.ReplyAsync(channel is null
             ? "Removed you from the global ignore list. You will now receive notifications from me."
             : $"You will now be notified when you're pinged in {channel.Mention}."
         );

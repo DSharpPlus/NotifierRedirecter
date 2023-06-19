@@ -15,7 +15,7 @@ public sealed partial class MessageCreatedEventHandler
     public static async Task ExecuteAsync(DiscordClient _, MessageCreateEventArgs eventArgs)
     {
         // Ensure the channel is a redirect channel
-        if (!await Program.Database.IsRedirectAsync(eventArgs.Channel.Id))
+        if (!Program.Database.IsRedirect(eventArgs.Channel.Id))
         {
             return;
         }
@@ -24,7 +24,7 @@ public sealed partial class MessageCreatedEventHandler
         foreach (DiscordUser user in eventArgs.MentionedUsers)
         {
             // Check if the user has explicitly opted out of being pinged
-            if (user.IsBot || await Program.Database.IsIgnoredUserAsync(user.Id, eventArgs.Channel.Id))
+            if (user.IsBot || Program.Database.IsIgnoredUser(user.Id, eventArgs.Guild.Id, eventArgs.Channel.Id))
             {
                 continue;
             }

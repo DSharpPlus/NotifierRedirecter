@@ -13,30 +13,28 @@ public sealed class RedirectCommand : BaseCommand
 {
     [Command("add"), Description("Start redirecting notifications to this channel.")]
     [RequirePermissionsCheck(PermissionCheckType.User, Permissions.ManageMessages)]
-    public static async Task AddAsync(CommandContext context, [Description("Which channel to start listening for pings.")] DiscordChannel channel)
+    public static Task AddAsync(CommandContext context, [Description("Which channel to start listening for pings.")] DiscordChannel channel)
     {
-        if (await Program.Database.IsRedirectAsync(channel.Id))
+        if (Program.Database.IsRedirect(channel.Id))
         {
-            await context.ReplyAsync($"Already redirecting notifications to {channel.Mention}.");
-            return;
+            return context.ReplyAsync($"Already redirecting notifications to {channel.Mention}.");
         }
 
-        await Program.Database.AddRedirectAsync(channel.Id, context.Guild!.Id);
-        await context.ReplyAsync($"Added {channel.Mention} to the redirect list.");
+        Program.Database.AddRedirect(context.Guild!.Id, channel.Id);
+        return context.ReplyAsync($"Added {channel.Mention} to the redirect list.");
     }
 
     [Command("remove"), Description("Stop redirecting notifications to this channel.")]
     [RequirePermissionsCheck(PermissionCheckType.User, Permissions.ManageMessages)]
-    public static async Task RemoveAsync(CommandContext context, [Description("Which channel to stop listening for pings.")] DiscordChannel channel)
+    public static Task RemoveAsync(CommandContext context, [Description("Which channel to stop listening for pings.")] DiscordChannel channel)
     {
-        if (!await Program.Database.IsRedirectAsync(channel.Id))
+        if (!Program.Database.IsRedirect(channel.Id))
         {
-            await context.ReplyAsync($"Not redirecting notifications to {channel.Mention}.");
-            return;
+            return context.ReplyAsync($"Not redirecting notifications to {channel.Mention}.");
         }
 
-        await Program.Database.RemoveRedirectAsync(channel.Id, context.Guild!.Id);
-        await context.ReplyAsync($"Removed {channel.Mention} from the redirect list.");
+        Program.Database.RemoveRedirect(context.Guild!.Id, channel.Id);
+        return context.ReplyAsync($"Removed {channel.Mention} from the redirect list.");
     }
 
     // TODO: ListAsync
