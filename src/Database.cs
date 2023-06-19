@@ -80,7 +80,7 @@ public sealed class Database
         SqliteCommand command = _preparedCommands[PreparedCommandType.AddIgnoredUser];
         command.Parameters[0].Value = userId;
         command.Parameters[1].Value = guildId;
-        command.Parameters[2].Value = (object?)channelId ?? DBNull.Value;
+        command.Parameters[2].Value = channelId ?? 0;
         command.ExecuteNonQuery();
     }
 
@@ -154,7 +154,7 @@ public sealed class Database
         addIgnoredUserCommand.Parameters.Add(CreateParameter(addIgnoredUserCommand, "$channel_id"));
 
         SqliteCommand isIgnoredUserCommand = _connection.CreateCommand();
-        isIgnoredUserCommand.CommandText = "SELECT EXISTS(SELECT 1 FROM `ignored_users` WHERE `user_id` = $user_id AND `guild_id` = $guild_id AND (channel_id = 0 NULL OR `channel_id` = $channel_id) LIMIT 1);";
+        isIgnoredUserCommand.CommandText = "SELECT EXISTS(SELECT 1 FROM `ignored_users` WHERE `user_id` = $user_id AND `guild_id` = $guild_id AND (channel_id = 0 OR `channel_id` = $channel_id) LIMIT 1);";
         isIgnoredUserCommand.Parameters.Add(CreateParameter(isIgnoredUserCommand, "$user_id"));
         isIgnoredUserCommand.Parameters.Add(CreateParameter(isIgnoredUserCommand, "$guild_id"));
         isIgnoredUserCommand.Parameters.Add(CreateParameter(isIgnoredUserCommand, "$channel_id"));
