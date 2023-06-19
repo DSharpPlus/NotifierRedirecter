@@ -102,7 +102,9 @@ public sealed class Program
 
         CommandAllExtension commandAll = client.UseCommandAll(new CommandAllConfiguration(Services)
         {
+#if DEBUG
             DebugGuildId = Configuration.GetValue<ulong>("discord:debug_guild_id"),
+#endif
             PrefixParser = new PrefixParser(Configuration.GetSection("discord:prefixes").Get<string[]>() ?? new[] { "n!" })
         });
         commandAll.AddCommands(typeof(Program).Assembly);
