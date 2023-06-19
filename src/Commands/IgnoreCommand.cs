@@ -1,12 +1,12 @@
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DSharpPlus.CommandAll.Attributes;
 using DSharpPlus.CommandAll.Commands;
 using DSharpPlus.CommandAll.Commands.Checks;
 using DSharpPlus.Entities;
-using System.Linq;
 
 namespace NotifierRedirecter.Commands;
 
