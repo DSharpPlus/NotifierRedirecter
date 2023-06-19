@@ -3,7 +3,7 @@ ARG VERSION=0.1.0
 WORKDIR /src
 
 COPY ./ /src
-RUN dotnet publish -c Release -r linux-musl-x64 -p:Version=$VERSION
+RUN dotnet publish -c Release -r linux-musl-x64 --self-contained -p:Version=$VERSION -p:EnableCompressionInSingleFile=true -p:PublishReadyToRun=true -p:PublishSingleFile=true
 
 FROM alpine:latest
 WORKDIR /src
