@@ -56,8 +56,8 @@ public sealed class IgnoreCommand : BaseCommand
         {
             0 => context.ReplyAsync("You are not ignoring any channels."),
             1 when ignoredChannels[0] == 0 => context.ReplyAsync("You are ignoring all channels."),
-            1 => context.ReplyAsync($"You are ignoring {ignoredChannels[0]}."),
-            2 => context.ReplyAsync($"You are ignoring {ignoredChannels[0]} and {ignoredChannels[1]}."),
+            1 => context.ReplyAsync($"You are ignoring <#{ignoredChannels[0]}>."),
+            2 => context.ReplyAsync($"You are ignoring <#{ignoredChannels[0]}> and <#{ignoredChannels[1]}>."),
             _ => context.ReplyAsync(FormatChannelMentions(ignoredChannels))
         };
     }
