@@ -1,3 +1,4 @@
-.vscode
-NotifierRedirecter/bin
-NotifierRedirecter/obj
+.editorconfig
+.env
+.gitignore
+README.md

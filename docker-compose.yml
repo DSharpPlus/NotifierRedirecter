@@ -1,0 +1,10 @@
+version: "3.9"
+
+services:
+  notifier_redirecter:
+    build: .
+    #image: ghcr.io/instellate/notifierredirecter:latest
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./database.db:/src/database.db

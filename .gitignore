@@ -1,4 +1,5 @@
-.vscode
-NotifierRedirecter/config.json
-NotifierRedirecter/bin
-NotifierRedirecter/obj
+.vscode/
+bin/
+obj/
+logs/
+database.db
