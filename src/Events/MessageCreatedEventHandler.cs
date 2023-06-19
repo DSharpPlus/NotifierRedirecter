@@ -5,6 +5,8 @@ using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using DSharpPlus.Exceptions;
 using Microsoft.Extensions.Logging;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace NotifierRedirecter.Events;
 
@@ -20,11 +22,17 @@ public sealed partial class MessageCreatedEventHandler
             return;
         }
 
+        IEnumerable<DiscordUser> mentionedUsers = eventArgs.Message.MentionedUsers;
+        if (eventArgs.Message.ReferencedMessage is not null && eventArgs.Message.ReferencedMessage.MentionedUsers.Contains(eventArgs.Message.ReferencedMessage.Author))
+        {
+            mentionedUsers = mentionedUsers.Append(eventArgs.Message.ReferencedMessage.Author);
+        }
+
         // Only mention the users that the message intended to mention.
-        foreach (DiscordUser user in eventArgs.MentionedUsers)
+        foreach (DiscordUser user in mentionedUsers)
         {
             // Check if the user has explicitly opted out of being pinged
-            if (user.IsBot || Program.Database.IsIgnoredUser(user.Id, eventArgs.Guild.Id, eventArgs.Channel.Id))
+            if (user.IsBot || user == eventArgs.Message.Author || Program.Database.IsIgnoredUser(user.Id, eventArgs.Guild.Id, eventArgs.Channel.Id))
             {
                 continue;
             }
