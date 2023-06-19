@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Text;
 using System.Threading.Tasks;
 using DSharpPlus;
 using DSharpPlus.CommandAll.Attributes;
@@ -37,5 +39,27 @@ public sealed class RedirectCommand : BaseCommand
         return context.ReplyAsync($"Removed {channel.Mention} from the redirect list.");
     }
 
-    // TODO: ListAsync
+    [Command("list"), Description("List all channels you've ignored.")]
+    public static Task ListAsync(CommandContext context)
+    {
+        IReadOnlyList<ulong> redirectedChannels = Program.Database.ListRedirects(context.Guild!.Id);
+        return redirectedChannels.Count switch
+        {
+            0 => context.ReplyAsync("No channels are being redirected."),
+            1 => context.ReplyAsync($"<#{redirectedChannels[0]}> is being redirected."),
+            2 => context.ReplyAsync($"Both <#{redirectedChannels[0]}> and <#{redirectedChannels[1]}> are being redirected."),
+            _ => context.ReplyAsync(FormatChannelMentions(redirectedChannels))
+        };
+    }
+
+    private static string FormatChannelMentions(IEnumerable<ulong> channelIds)
+    {
+        StringBuilder builder = new();
+        builder.AppendLine("The following channels are being redirected:");
+        foreach (ulong channelId in channelIds)
+        {
+            builder.AppendLine($"- <#{channelId}>");
+        }
+        return builder.ToString();
+    }
 }
