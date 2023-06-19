@@ -17,7 +17,7 @@ public sealed class HelpCommand : BaseCommand
 {
     [Command("help"), Description("Displays which commands are available, or displays detailed information for a specified command.")]
     [RequireGuildCheck, SuppressMessage("Roslyn", "IDE0046", Justification = "Ternary operator rabbit hole.")]
-    public static Task ExecuteAsync(CommandContext context, [RemainingText] string? command = null)
+    public static Task ExecuteAsync(CommandContext context, [Description("Which command to show information on. If empty, all commands are shown."), RemainingText] string? command = null)
     {
         IReadOnlyDictionary<string, Command> commands = context.Extension.CommandManager.GetCommands();
         if (string.IsNullOrWhiteSpace(command))
@@ -38,9 +38,9 @@ public sealed class HelpCommand : BaseCommand
     {
         DiscordEmbedBuilder embed = new DiscordEmbedBuilder()
             .WithTitle("Commands")
+            .WithDescription("Use `/help <command>` for more information on a command.")
             .WithColor(DiscordColor.Goldenrod)
-            .WithAuthor(author!.DisplayName, author.AvatarUrl)
-            .WithFooter($"Use {Formatter.InlineCode("help <command>")} for more information on a command.");
+            .WithAuthor(author!.DisplayName, author.AvatarUrl, author.AvatarUrl);
 
         foreach (Command command in commands)
         {
@@ -62,8 +62,7 @@ public sealed class HelpCommand : BaseCommand
             .WithTitle(command.FullName)
             .WithDescription(command.Description)
             .WithColor(DiscordColor.Goldenrod)
-            .WithAuthor(author!.DisplayName, author.AvatarUrl)
-            .WithFooter("Use `help <command>` for more information on a command.");
+            .WithAuthor(author!.DisplayName, author.AvatarUrl, author.AvatarUrl);
 
         if (command.Subcommands.Any())
         {
@@ -74,14 +73,14 @@ public sealed class HelpCommand : BaseCommand
         }
         else
         {
-            StringBuilder usage = new("Usage: `/{command.Name}");
+            StringBuilder usage = new($"Usage: `/{command.FullName.ToLowerInvariant()}");
             foreach (CommandParameter parameter in command.Overloads[0].Parameters)
             {
                 embed.AddField(parameter.Name, parameter.Description, true);
                 usage.Append(parameter.Flags.HasFlag(CommandParameterFlags.Optional) ? $" [{parameter.Name}]" : $" <{parameter.Name}>");
             }
             usage.Append('`');
-            embed.WithFooter(usage.ToString());
+            embed.Description += $"\n{usage}";
         }
 
         return embed;

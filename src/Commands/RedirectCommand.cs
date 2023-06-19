@@ -13,16 +13,28 @@ public sealed class RedirectCommand : BaseCommand
 {
     [Command("add"), Description("Start redirecting notifications to this channel.")]
     [RequirePermissionsCheck(PermissionCheckType.User, Permissions.ManageMessages)]
-    public static async Task AddAsync(CommandContext context, DiscordChannel channel)
+    public static async Task AddAsync(CommandContext context, [Description("Which channel to start listening for pings.")] DiscordChannel channel)
     {
+        if (await Program.Database.IsRedirectAsync(channel.Id))
+        {
+            await context.ReplyAsync($"Already redirecting notifications to {channel.Mention}.");
+            return;
+        }
+
         await Program.Database.AddRedirectAsync(channel.Id, context.Guild!.Id);
         await context.ReplyAsync($"Added {channel.Mention} to the redirect list.");
     }
 
     [Command("remove"), Description("Stop redirecting notifications to this channel.")]
     [RequirePermissionsCheck(PermissionCheckType.User, Permissions.ManageMessages)]
-    public static async Task RemoveAsync(CommandContext context, DiscordChannel channel)
+    public static async Task RemoveAsync(CommandContext context, [Description("Which channel to stop listening for pings.")] DiscordChannel channel)
     {
+        if (!await Program.Database.IsRedirectAsync(channel.Id))
+        {
+            await context.ReplyAsync($"Not redirecting notifications to {channel.Mention}.");
+            return;
+        }
+
         await Program.Database.RemoveRedirectAsync(channel.Id, context.Guild!.Id);
         await context.ReplyAsync($"Removed {channel.Mention} from the redirect list.");
     }
