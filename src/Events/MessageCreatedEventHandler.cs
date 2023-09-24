@@ -25,7 +25,7 @@ public sealed partial class MessageCreatedEventHandler
         IEnumerable<DiscordUser> mentionedUsers = eventArgs.Message.MentionedUsers;
         if (eventArgs.Message.ReferencedMessage is not null && eventArgs.Message.ReferencedMessage.MentionedUsers.Contains(eventArgs.Message.ReferencedMessage.Author))
         {
-            mentionedUsers = mentionedUsers.Append(eventArgs.Message.ReferencedMessage.Author);
+            mentionedUsers = mentionedUsers.Prepend(eventArgs.Message.ReferencedMessage.Author);
         }
 
         // Only mention the users that the message intended to mention.
