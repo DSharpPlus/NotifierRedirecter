@@ -16,14 +16,19 @@ public sealed partial class MessageCreatedEventHandler
 
     public static async Task ExecuteAsync(DiscordClient _, MessageCreateEventArgs eventArgs)
     {
+        DiscordMessage message = eventArgs.Message;
+        // Explicitly cast to nullable to prevent erroneous compiler warning about it
+        // not being nullable.
+        DiscordMessage? reply = (DiscordMessage?)message.ReferencedMessage;
+        
         // Ensure the channel is a redirect channel
-        if (!Program.Database.IsRedirect(eventArgs.Channel.Id))
+        if (!Program.Database.IsRedirect(message.Channel.Id))
         {
             return;
         }
 
-        IEnumerable<DiscordUser> mentionedUsers = eventArgs.Message.MentionedUsers;
-        if (eventArgs.Message.ReferencedMessage is not null && eventArgs.Message.ReferencedMessage.MentionedUsers.Contains(eventArgs.Message.ReferencedMessage.Author))
+        IEnumerable<DiscordUser> mentionedUsers = message.MentionedUsers;
+        if (reply is not null && reply.MentionedUsers.Contains(reply.Author))
         {
             mentionedUsers = mentionedUsers.Prepend(eventArgs.Message.ReferencedMessage.Author);
         }
@@ -32,7 +37,7 @@ public sealed partial class MessageCreatedEventHandler
         foreach (DiscordUser user in mentionedUsers)
         {
             // Check if the user has explicitly opted out of being pinged
-            if (user.IsBot || user == eventArgs.Message.Author || Program.Database.IsIgnoredUser(user.Id, eventArgs.Guild.Id, eventArgs.Channel.Id))
+            if (user.IsBot || user == message.Author || Program.Database.IsIgnoredUser(user.Id, eventArgs.Guild.Id, eventArgs.Channel.Id))
             {
                 continue;
             }
@@ -64,7 +69,7 @@ public sealed partial class MessageCreatedEventHandler
 
             try
             {
-                await member.SendMessageAsync($"You were pinged in {eventArgs.Channel.Mention} by {eventArgs.Message.Author.Mention}: {eventArgs.Message.JumpLink}");
+                await member.SendMessageAsync($"You were pinged in {eventArgs.Channel.Mention} by {message.Author.Mention}: {message.JumpLink}");
             }
             catch (DiscordException error)
             {
