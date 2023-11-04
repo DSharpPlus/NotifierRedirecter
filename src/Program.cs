@@ -105,7 +105,7 @@ public sealed class Program
 #if DEBUG
             DebugGuildId = Configuration.GetValue<ulong>("discord:debug_guild_id"),
 #endif
-            PrefixParser = new PrefixParser(Configuration.GetSection("discord:prefixes").Get<string[]>() ?? new[] { "n!" })
+            PrefixParser = new PrefixParser(Configuration.GetSection("discord:prefixes").Get<string[]>() ?? ["n!"])
         });
         commandAll.AddCommands(typeof(Program).Assembly);
         commandAll.CommandErrored += CommandErroredEventHandler.ExecuteAsync;
