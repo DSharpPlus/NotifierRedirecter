@@ -19,15 +19,15 @@ public sealed class IgnoreCommand : BaseCommand
         if (Program.Database.IsIgnoredUser(context.User.Id, context.Guild!.Id, channel?.Id))
         {
             return context.ReplyAsync(channel is null
-                ? "You are already on the global ignore list."
+                ? "You're already on the global ignore list."
                 : $"You're already ignoring {channel.Mention}."
             );
         }
 
         Program.Database.AddIgnoredUser(context.User.Id, context.Guild.Id, channel?.Id);
         return context.ReplyAsync(channel is null
-            ? "Added you to the global ignore list. You will no longer receive notifications from me."
-            : $"You will no longer be notified when you're pinged in {channel.Mention}."
+            ? "I've added you to the global ignore list. You will no longer receive notifications from me."
+            : $"You will no longer receive a DM when you're pinged in {channel.Mention}."
         );
     }
 
@@ -37,14 +37,14 @@ public sealed class IgnoreCommand : BaseCommand
         if (!Program.Database.IsIgnoredUser(context.User.Id, context.Guild!.Id, channel?.Id))
         {
             return context.ReplyAsync(channel is null
-                ? "You are not on the global ignore list."
-                : $"You are not ignoring {channel.Mention}."
+                ? "You're not on the global ignore list."
+                : $"You're not ignoring {channel.Mention}."
             );
         }
 
         Program.Database.RemoveIgnoredUser(context.User.Id, context.Guild.Id, channel?.Id);
         return context.ReplyAsync(channel is null
-            ? "Removed you from the global ignore list. You will now receive notifications from me."
+            ? "I've removed you from the global ignore list. You will once again receive notifications from me."
             : $"You will now be notified when you're pinged in {channel.Mention}."
         );
     }
@@ -55,10 +55,10 @@ public sealed class IgnoreCommand : BaseCommand
         IReadOnlyList<ulong> ignoredChannels = Program.Database.ListIgnoredUserChannels(context.User.Id, context.Guild!.Id);
         return ignoredChannels.Count switch
         {
-            0 => context.ReplyAsync("You are not ignoring any channels."),
-            1 => context.ReplyAsync($"You are ignoring <#{ignoredChannels[0]}>."),
-            2 => context.ReplyAsync($"You are ignoring <#{ignoredChannels[0]}> and <#{ignoredChannels[1]}>."),
-            _ when ignoredChannels.Any(channelId => channelId == 0) => context.ReplyAsync("You are ignoring all channels."),
+            0 => context.ReplyAsync("You're not ignoring any channels."),
+            1 => context.ReplyAsync($"You're ignoring <#{ignoredChannels[0]}>."),
+            2 => context.ReplyAsync($"You're ignoring <#{ignoredChannels[0]}> and <#{ignoredChannels[1]}>."),
+            _ when ignoredChannels.Any(channelId => channelId == 0) => context.ReplyAsync("You're ignoring all channels."),
             _ => context.ReplyAsync(FormatChannelMentions(ignoredChannels))
         };
     }
@@ -66,7 +66,7 @@ public sealed class IgnoreCommand : BaseCommand
     private static string FormatChannelMentions(IEnumerable<ulong> channelIds)
     {
         StringBuilder builder = new();
-        builder.AppendLine("You are ignoring the following channels:");
+        builder.AppendLine("You're ignoring the following channels:");
         foreach (ulong channelId in channelIds)
         {
             builder.AppendLine($"- <#{channelId}>");

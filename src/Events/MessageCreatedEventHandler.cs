@@ -16,12 +16,13 @@ public sealed partial class MessageCreatedEventHandler
 
     public static async Task ExecuteAsync(DiscordClient _, MessageCreateEventArgs eventArgs)
     {
-        bool shouldSilence = eventArgs.Message.Flags is { } flags && flags.HasFlag(MessageFlags.SupressNotifications);
+        bool shouldSilence = eventArgs.Message.Flags?.HasFlag(MessageFlags.SupressNotifications) ?? false;
         DiscordMessage message = eventArgs.Message;
+
         // Explicitly cast to nullable to prevent erroneous compiler warning about it
         // not being nullable.
         DiscordMessage? reply = (DiscordMessage?)message.ReferencedMessage;
-        
+
         // Ensure the channel is a redirect channel
         if (!Program.Database.IsRedirect(message.Channel.Id))
         {
@@ -33,7 +34,6 @@ public sealed partial class MessageCreatedEventHandler
         {
             mentionedUsers = mentionedUsers.Prepend(eventArgs.Message.ReferencedMessage.Author);
         }
-        
 
         // Only mention the users that the message intended to mention.
         foreach (DiscordUser user in mentionedUsers)
@@ -71,14 +71,14 @@ public sealed partial class MessageCreatedEventHandler
 
             try
             {
-                var builder = new DiscordMessageBuilder()
+                DiscordMessageBuilder builder = new DiscordMessageBuilder()
                     .WithContent($"You were pinged by {message.Author.Mention} in {eventArgs.Channel.Mention}. [Jump! \u2197]({message.JumpLink})");
 
                 if (shouldSilence)
                 {
                     builder.SuppressNotifications();
                 }
-                
+
                 await member.SendMessageAsync(builder);
             }
             catch (DiscordException error)
