@@ -3,8 +3,10 @@ on:
     branches:
       - main
     paths:
+      - ".github/workflows/build-commit.yml"
       - "src/**"
       - "NotifierRedirecter.sln"
+      - "Dockerfile"
 
 env:
   DOTNET_NOLOGO: 1
