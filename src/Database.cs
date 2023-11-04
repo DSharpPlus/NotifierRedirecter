@@ -66,7 +66,7 @@ public sealed class Database
         SqliteCommand command = _preparedCommands[PreparedCommandType.ListRedirects];
         command.Parameters[0].Value = guildId;
         using SqliteDataReader reader = command.ExecuteReader();
-        List<ulong> channels = new();
+        List<ulong> channels = [];
         while (reader.Read())
         {
             channels.Add(reader.GetFieldValue<ulong>(0));
@@ -109,13 +109,56 @@ public sealed class Database
         command.Parameters[0].Value = userId;
         command.Parameters[1].Value = guildId;
         using SqliteDataReader reader = command.ExecuteReader();
-        List<ulong> channels = new();
+        List<ulong> channels = [];
         while (reader.Read())
         {
             channels.Add(reader.GetFieldValue<ulong>(0));
         }
 
         return channels;
+    }
+
+    public void AddBlockedUser(ulong userId, ulong guildId, ulong blockedUserId)
+    {
+        SqliteCommand command = _preparedCommands[PreparedCommandType.AddBlockedUser];
+        command.Parameters[0].Value = userId;
+        command.Parameters[1].Value = guildId;
+        command.Parameters[2].Value = blockedUserId;
+        command.ExecuteNonQuery();
+    }
+
+    public bool IsBlockedUser(ulong userId, ulong guildId, ulong blockedUserId)
+    {
+        SqliteCommand command = _preparedCommands[PreparedCommandType.IsBlockedUser];
+        command.Parameters[0].Value = userId;
+        command.Parameters[1].Value = guildId;
+        command.Parameters[2].Value = blockedUserId;
+        using SqliteDataReader reader = command.ExecuteReader();
+        return reader.HasRows && reader.Read() && reader.GetBoolean(0);
+    }
+
+    public void RemoveBlockedUser(ulong userId, ulong guildId, ulong blockedUserId)
+    {
+        SqliteCommand command = _preparedCommands[PreparedCommandType.RemoveBlockedUser];
+        command.Parameters[0].Value = userId;
+        command.Parameters[1].Value = guildId;
+        command.Parameters[2].Value = blockedUserId;
+        command.ExecuteNonQuery();
+    }
+
+    public IReadOnlyList<ulong> ListBlockedUsers(ulong userId, ulong guildId)
+    {
+        SqliteCommand command = _preparedCommands[PreparedCommandType.ListBlockedUsers];
+        command.Parameters[0].Value = userId;
+        command.Parameters[1].Value = guildId;
+        using SqliteDataReader reader = command.ExecuteReader();
+        List<ulong> blockedUsers = [];
+        while (reader.Read())
+        {
+            blockedUsers.Add(reader.GetFieldValue<ulong>(0));
+        }
+
+        return blockedUsers;
     }
 
     private FrozenDictionary<PreparedCommandType, SqliteCommand> PrepareCommands()
@@ -170,6 +213,29 @@ public sealed class Database
         listIgnoredUserChannels.Parameters.Add(CreateParameter(listIgnoredUserChannels, "$user_id"));
         listIgnoredUserChannels.Parameters.Add(CreateParameter(listIgnoredUserChannels, "$guild_id"));
 
+        SqliteCommand addBlockedUserCommand = _connection.CreateCommand();
+        addBlockedUserCommand.CommandText = "INSERT INTO `blocked_users` (`user_id`, `guild_id`, `blocked_user_id`) VALUES ($user_id, $guild_id, $blocked_user_id);";
+        addBlockedUserCommand.Parameters.Add(CreateParameter(addBlockedUserCommand, "$user_id"));
+        addBlockedUserCommand.Parameters.Add(CreateParameter(addBlockedUserCommand, "$guild_id"));
+        addBlockedUserCommand.Parameters.Add(CreateParameter(addBlockedUserCommand, "$blocked_user_id"));
+
+        SqliteCommand isBlockedUserCommand = _connection.CreateCommand();
+        isBlockedUserCommand.CommandText = "SELECT EXISTS(SELECT 1 FROM `blocked_users` WHERE `user_id` = $user_id AND `guild_id` = $guild_id AND `blocked_user_id` = $blocked_user_id LIMIT 1);";
+        isBlockedUserCommand.Parameters.Add(CreateParameter(isBlockedUserCommand, "$user_id"));
+        isBlockedUserCommand.Parameters.Add(CreateParameter(isBlockedUserCommand, "$guild_id"));
+        isBlockedUserCommand.Parameters.Add(CreateParameter(isBlockedUserCommand, "$blocked_user_id"));
+
+        SqliteCommand removeBlockedUserCommand = _connection.CreateCommand();
+        removeBlockedUserCommand.CommandText = "DELETE FROM `blocked_users` WHERE `user_id` = $user_id AND `guild_id` = $guild_id AND `blocked_user_id` = $blocked_user_id;";
+        removeBlockedUserCommand.Parameters.Add(CreateParameter(removeBlockedUserCommand, "$user_id"));
+        removeBlockedUserCommand.Parameters.Add(CreateParameter(removeBlockedUserCommand, "$guild_id"));
+        removeBlockedUserCommand.Parameters.Add(CreateParameter(removeBlockedUserCommand, "$blocked_user_id"));
+
+        SqliteCommand listBlockedUsers = _connection.CreateCommand();
+        listBlockedUsers.CommandText = "SELECT `blocked_user_id` FROM `blocked_users` WHERE `user_id` = $user_id AND `guild_id` = $guild_id;";
+        listBlockedUsers.Parameters.Add(CreateParameter(listBlockedUsers, "$user_id"));
+        listBlockedUsers.Parameters.Add(CreateParameter(listBlockedUsers, "$guild_id"));
+
         return new Dictionary<PreparedCommandType, SqliteCommand>
         {
             [PreparedCommandType.AddRedirect] = addRedirectCommand,
@@ -179,7 +245,11 @@ public sealed class Database
             [PreparedCommandType.AddIgnoredUser] = addIgnoredUserCommand,
             [PreparedCommandType.IsIgnoredUser] = isIgnoredUserCommand,
             [PreparedCommandType.RemoveIgnoredUser] = removeIgnoredUserCommand,
-            [PreparedCommandType.ListIgnoredUserChannels] = listIgnoredUserChannels
+            [PreparedCommandType.ListIgnoredUserChannels] = listIgnoredUserChannels,
+            [PreparedCommandType.AddBlockedUser] = addBlockedUserCommand,
+            [PreparedCommandType.IsBlockedUser] = isBlockedUserCommand,
+            [PreparedCommandType.RemoveBlockedUser] = removeBlockedUserCommand,
+            [PreparedCommandType.ListBlockedUsers] = listBlockedUsers
         }.ToFrozenDictionary();
     }
 
@@ -191,7 +261,7 @@ public sealed class Database
         // > Instead, use write-ahead logging to improve performance and concurrency.
         // > WAL might be very slightly slower (perhaps 1% or 2% slower) than the traditional rollback-journal approach in applications that do mostly reads and seldom write.
         // Specifically not using "PRAGMA journal_mode = 'wal'" since we will be doing far more reads than writes.
-        // Incoming messages are more common than interactions of course.
+        // Incoming messages are more common than interactions.
         _logger.LogTrace("Initializing SQL database...");
         _connection.Open();
 
@@ -209,6 +279,13 @@ public sealed class Database
                 `guild_id` INTEGER NOT NULL,
                 `channel_id` INTEGER NOT NULL,
                 PRIMARY KEY (`user_id`, `guild_id`, `channel_id`)
+            );
+
+            CREATE TABLE IF NOT EXISTS `blocked_users` (
+                `user_id` INTEGER NOT NULL,
+                `guild_id` INTEGER NOT NULL,
+                `blocked_user_id` INTEGER NOT NULL,
+                PRIMARY KEY (`user_id`, `guild_id`, `blocked_user_id`)
             );
         ";
         createTablesCommand.ExecuteNonQuery();
@@ -232,6 +309,10 @@ public sealed class Database
         AddIgnoredUser,
         IsIgnoredUser,
         RemoveIgnoredUser,
-        ListIgnoredUserChannels
+        ListIgnoredUserChannels,
+        AddBlockedUser,
+        IsBlockedUser,
+        RemoveBlockedUser,
+        ListBlockedUsers
     }
 }
