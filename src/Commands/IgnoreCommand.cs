@@ -14,7 +14,7 @@ namespace NotifierRedirecter.Commands;
 public sealed class IgnoreCommand : BaseCommand
 {
     [Command("add"), Description("Disable notifications from me.")]
-    public static Task AddAsync(CommandContext context, [Description("Which channel to stop receiving notifications in. If empty, I'll stop sending notifications entirely")] DiscordChannel? channel = null)
+    public static Task AddAsync(CommandContext context, [Description("Which channel to stop receiving notifications in. If empty, I'll stop sending notifications entirely.")] DiscordChannel? channel = null)
     {
         if (Program.Database.IsIgnoredUser(context.User.Id, context.Guild!.Id, channel?.Id))
         {
@@ -32,7 +32,7 @@ public sealed class IgnoreCommand : BaseCommand
     }
 
     [Command("remove"), Description("Enable notifications from me.")]
-    public static Task RemoveAsync(CommandContext context, [Description("Which channel to start receiving notifications in. If empty, I'll start sending notifications again")] DiscordChannel? channel = null)
+    public static Task RemoveAsync(CommandContext context, [Description("Which channel to start receiving notifications in. If empty, I'll start sending notifications again.")] DiscordChannel? channel = null)
     {
         if (!Program.Database.IsIgnoredUser(context.User.Id, context.Guild!.Id, channel?.Id))
         {

@@ -46,11 +46,11 @@ public sealed class BlockCommand : BaseCommand
             0 => context.ReplyAsync("You don't have any users blocked."),
             1 => context.ReplyAsync($"You have blocked <@{blockedUsers[0]}>."),
             2 => context.ReplyAsync($"You blocked <@{blockedUsers[0]}> and <@{blockedUsers[1]}>."),
-            _ => context.ReplyAsync(FormatChannelMentions(blockedUsers))
+            _ => context.ReplyAsync(FormatUserMentions(blockedUsers))
         };
     }
 
-    private static string FormatChannelMentions(IEnumerable<ulong> userIds)
+    private static string FormatUserMentions(IEnumerable<ulong> userIds)
     {
         StringBuilder builder = new();
         builder.AppendLine("You've blocked the following users:");
