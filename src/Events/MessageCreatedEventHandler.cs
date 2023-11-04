@@ -39,7 +39,7 @@ public sealed partial class MessageCreatedEventHandler
         foreach (DiscordUser user in mentionedUsers)
         {
             // Check if the user has explicitly opted out of being pinged
-            if (user.IsBot || user == message.Author || Program.Database.IsIgnoredUser(user.Id, eventArgs.Guild.Id, eventArgs.Channel.Id))
+            if (user.IsBot || user == message.Author || Program.Database.IsIgnoredUser(user.Id, eventArgs.Guild.Id, eventArgs.Channel.Id) || Program.Database.IsBlockedUser(user.Id, eventArgs.Guild.Id, eventArgs.Author.Id))
             {
                 continue;
             }
