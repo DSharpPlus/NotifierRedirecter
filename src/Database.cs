@@ -5,6 +5,7 @@ using System.Data;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace NotifierRedirecter;
 
@@ -15,9 +16,9 @@ public sealed class Database
     private readonly ILogger<Database> _logger;
     private readonly FrozenDictionary<PreparedCommandType, SqliteCommand> _preparedCommands;
 
-    public Database(IConfiguration configuration)
+    public Database(IConfiguration configuration, ILogger<Database>? logger = null)
     {
-        _logger = Program.LoggerFactory.CreateLogger<Database>();
+        _logger = logger ?? NullLogger<Database>.Instance;
         string? dataSource = configuration.GetValue("database:path", "database.db");
         if (string.IsNullOrWhiteSpace(dataSource))
         {

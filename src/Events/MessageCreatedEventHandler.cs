@@ -7,15 +7,18 @@ using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using DSharpPlus.Exceptions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace NotifierRedirecter.Events;
 
-public sealed partial class MessageCreatedEventHandler
+public sealed partial class MessageCreatedEventHandler(UserActivityTracker userActivityTracker, Database database, ILogger<MessageCreatedEventHandler>? logger = null)
 {
-    private static readonly ILogger<MessageCreatedEventHandler> Logger = Program.LoggerFactory.CreateLogger<MessageCreatedEventHandler>();
+    private readonly ILogger<MessageCreatedEventHandler> _logger = logger ?? NullLogger<MessageCreatedEventHandler>.Instance;
 
-    public static async Task ExecuteAsync(DiscordClient _, MessageCreateEventArgs eventArgs)
+    public async Task ExecuteAsync(DiscordClient _, MessageCreateEventArgs eventArgs)
     {
+        userActivityTracker.UpdateUser(eventArgs.Author.Id, eventArgs.Channel.Id);
+
         bool shouldSilence = eventArgs.Message.Flags?.HasFlag(MessageFlags.SupressNotifications) ?? false;
         DiscordMessage message = eventArgs.Message;
 
@@ -24,7 +27,7 @@ public sealed partial class MessageCreatedEventHandler
         DiscordMessage? reply = (DiscordMessage?)message.ReferencedMessage;
 
         // Ensure the channel is a redirect channel
-        if (!Program.Database.IsRedirect(message.Channel.Id))
+        if (!database.IsRedirect(message.Channel.Id))
         {
             return;
         }
@@ -38,8 +41,9 @@ public sealed partial class MessageCreatedEventHandler
         // Only mention the users that the message intended to mention.
         foreach (DiscordUser user in mentionedUsers)
         {
-            // Check if the user has explicitly opted out of being pinged
-            if (user.IsBot || user == message.Author || Program.Database.IsIgnoredUser(user.Id, eventArgs.Guild.Id, eventArgs.Channel.Id) || Program.Database.IsBlockedUser(user.Id, eventArgs.Guild.Id, eventArgs.Author.Id))
+            // Check if the user has explicitly opted out of being pinged.
+            // Additionally check if the user has recently done activity within the channel.
+            if (user.IsBot || user == message.Author || await userActivityTracker.IsActiveAsync(user.Id, eventArgs.Channel.Id) || database.IsIgnoredUser(user.Id, eventArgs.Guild.Id, eventArgs.Channel.Id) || database.IsBlockedUser(user.Id, eventArgs.Guild.Id, eventArgs.Author.Id))
             {
                 continue;
             }
@@ -53,18 +57,18 @@ public sealed partial class MessageCreatedEventHandler
                 }
                 catch (NotFoundException error)
                 {
-                    Logger.LogDebug(error, "User {UserId} doesn't exist!", user.Id);
+                    _logger.LogDebug(error, "User {UserId} doesn't exist!", user.Id);
                     continue;
                 }
                 catch (DiscordException error)
                 {
-                    Logger.LogError(error, "Failed to get member {UserId}", user.Id);
+                    _logger.LogError(error, "Failed to get member {UserId}", user.Id);
                     continue;
                 }
                 // This shouldn't hit but just in case I guess
                 catch (Exception error)
                 {
-                    Logger.LogError(error, "Unexpected error when grabbing member {UserId}", user.Id);
+                    _logger.LogError(error, "Unexpected error when grabbing member {UserId}", user.Id);
                     continue;
                 }
             }
@@ -83,12 +87,12 @@ public sealed partial class MessageCreatedEventHandler
             }
             catch (DiscordException error)
             {
-                Logger.LogError(error, "Failed to send message to {UserId}", member.Id);
+                _logger.LogError(error, "Failed to send message to {UserId}", member.Id);
                 continue;
             }
             catch (Exception error)
             {
-                Logger.LogError(error, "Unexpected error when sending message to {UserId}", member.Id);
+                _logger.LogError(error, "Unexpected error when sending message to {UserId}", member.Id);
                 continue;
             }
         }
