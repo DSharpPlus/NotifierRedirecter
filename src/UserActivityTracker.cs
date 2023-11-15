@@ -7,7 +7,7 @@ namespace NotifierRedirecter;
 
 public sealed class UserActivityTracker
 {
-    private static readonly TimeSpan _activityTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan _activityTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan _cleanupInterval = TimeSpan.FromMinutes(5);
 
     /// <summary>
