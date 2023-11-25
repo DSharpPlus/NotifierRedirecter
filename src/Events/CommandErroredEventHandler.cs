@@ -2,54 +2,48 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using DSharpPlus;
-using DSharpPlus.CommandAll;
-using DSharpPlus.CommandAll.Commands.Checks;
-using DSharpPlus.CommandAll.EventArgs;
-using DSharpPlus.CommandAll.Exceptions;
+using DSharpPlus.Commands;
+using DSharpPlus.Commands.ContextChecks;
+using DSharpPlus.Commands.EventArgs;
+using DSharpPlus.Commands.Exceptions;
 using DSharpPlus.Entities;
 using DSharpPlus.Exceptions;
-using Humanizer;
 
 namespace NotifierRedirecter.Events;
 
 public sealed class CommandErroredEventHandler
 {
-    public static Task ExecuteAsync(CommandAllExtension _, CommandErroredEventArgs eventArgs)
+    public static ValueTask ExecuteAsync(CommandsExtension _, CommandErroredEventArgs eventArgs)
     {
         if (eventArgs.Exception is CommandNotFoundException commandNotFoundException)
         {
-            return eventArgs.Context.ReplyAsync($"Unknown command: {commandNotFoundException.CommandString}");
+            return eventArgs.Context.RespondAsync($"Unknown command: {commandNotFoundException.CommandName}");
         }
 
         DiscordEmbedBuilder embedBuilder = new()
         {
             Title = "Command Error",
-            Description = $"{Formatter.InlineCode(eventArgs.Context.CurrentCommand.FullName)} failed to execute.",
+            Description = $"{Formatter.InlineCode(eventArgs.Context.Command.FullName)} failed to execute.",
             Color = new DiscordColor("#6b73db")
         };
 
         switch (eventArgs.Exception)
         {
-            case CommandChecksFailedException checksFailedException:
+            case ChecksFailedException checksFailedException:
                 embedBuilder.AddField("Error Message", checksFailedException.Message, true);
-                foreach (CommandCheckResult check in checksFailedException.FailedChecks)
+                foreach (var check in checksFailedException.Check)
                 {
-                    if (check.Success)
-                    {
-                        continue;
-                    }
-
                     embedBuilder = check.Check switch
                     {
-                        RequireGuildCheckAttribute => embedBuilder.AddField("Guild Only", "This command can only be used in a guild.", false),
-                        RequirePermissionsCheckAttribute permissionsCheck when permissionsCheck.PermissionType == PermissionCheckType.Bot => embedBuilder.AddField("I'm Missing Permissions", string.Join(", ", permissionsCheck.Permissions.ToPermissionString()), false),
-                        RequirePermissionsCheckAttribute permissionsCheck when permissionsCheck.PermissionType == PermissionCheckType.User => embedBuilder.AddField("You're Missing Permissions", string.Join(", ", permissionsCheck.Permissions.ToPermissionString()), false),
-                        _ => embedBuilder.AddField(check.Check.GetType().Name, check.Exception?.Message ?? "Failed.", false)
+                        RequireGuildAttribute => embedBuilder.AddField("Guild Only", "This command can only be used in a guild.", false),
+                        RequirePermissionsAttribute permissionsCheck when permissionsCheck.BotPermissions != Permissions.None => embedBuilder.AddField("I'm Missing Permissions", string.Join(", ", permissionsCheck.BotPermissions.ToPermissionString()), false),
+                        RequirePermissionsAttribute permissionsCheck when permissionsCheck.UserPermissions == Permissions.None => embedBuilder.AddField("You're Missing Permissions", string.Join(", ", permissionsCheck.UserPermissions.ToPermissionString()), false),
+                        _ => embedBuilder.AddField(check.Message.GetType().Name, check.InnerException?.Message ?? "Failed.", false)
                     };
                 }
                 break;
             case DiscordException discordError:
-                embedBuilder.AddField("HTTP Code", discordError.WebResponse.ResponseCode.ToString(), true);
+                embedBuilder.AddField("HTTP Code", discordError.Response?.ToString(), true);
                 embedBuilder.AddField("Error Message", discordError.JsonMessage, true);
                 break;
             default:
@@ -58,7 +52,7 @@ public sealed class CommandErroredEventHandler
                 break;
         }
 
-        return eventArgs.Context.ReplyAsync(new DiscordMessageBuilder().AddEmbed(embedBuilder));
+        return eventArgs.Context.RespondAsync(new DiscordMessageBuilder().AddEmbed(embedBuilder));
     }
 
     private static string FormatStackTrace(string? text) => text == null

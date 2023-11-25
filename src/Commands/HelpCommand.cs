@@ -5,31 +5,31 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DSharpPlus;
-using DSharpPlus.CommandAll.Attributes;
-using DSharpPlus.CommandAll.Commands;
-using DSharpPlus.CommandAll.Commands.Enums;
+using DSharpPlus.Commands.Processors.TextCommands.Attributes;
+using DSharpPlus.Commands.Trees;
+using DSharpPlus.Commands.Trees.Attributes;
 using DSharpPlus.Entities;
 
 namespace NotifierRedirecter.Commands;
 
-public sealed class HelpCommand : BaseCommand
+public sealed class HelpCommand 
 {
     [Command("help"), Description("Displays which commands are available, or displays detailed information for a specified command.")]
     [SuppressMessage("Roslyn", "IDE0046", Justification = "Ternary operator rabbit hole.")]
-    public static Task ExecuteAsync(CommandContext context, [Description("Which command to show information on. If empty, all commands are shown."), RemainingText] string? command = null)
+    public static ValueTask ExecuteAsync(CommandContext context, [Description("Which command to show information on. If empty, all commands are shown."), RemainingText] string? command = null)
     {
-        IReadOnlyDictionary<string, Command> commands = context.Extension.CommandManager.GetCommands();
+        IReadOnlyDictionary<string, Command> commands = context.Extension.Commands;
         if (string.IsNullOrWhiteSpace(command))
         {
-            return context.ReplyAsync(GenerateCommandListEmbed(context.User, commands.Values));
+            return context.RespondAsync(GenerateCommandListEmbed(context.User, commands.Values));
         }
         else if (!commands.TryGetValue(command, out Command? commandValue))
         {
-            return context.ReplyAsync($"Unable to find a command named {Formatter.InlineCode(command)}.");
+            return context.RespondAsync($"Unable to find a command named {Formatter.InlineCode(command)}.");
         }
         else
         {
-            return context.ReplyAsync(GenerateCommandEmbed(context.User, commandValue));
+            return context.RespondAsync(GenerateCommandEmbed(context.User, commandValue));
         }
     }
 
@@ -76,7 +76,7 @@ public sealed class HelpCommand : BaseCommand
             foreach (CommandParameter parameter in command.Overloads[0].Parameters)
             {
                 embed.AddField(parameter.Name, parameter.Description, true);
-                usage.Append(parameter.Flags.HasFlag(CommandParameterFlags.Optional) ? $" [{parameter.Name}]" : $" <{parameter.Name}>");
+                usage.Append(parameter.Flags.HasFlag(parameter.Attributes.Optional) ? $" [{parameter.Name}]" : $" <{parameter.Name}>");
             }
             usage.Append('`');
             embed.Description += $"\n{usage}";

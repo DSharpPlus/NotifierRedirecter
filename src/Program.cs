@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
 using DSharpPlus;
-using DSharpPlus.CommandAll;
-using DSharpPlus.CommandAll.Parsers;
+using DSharpPlus.Commands;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -102,12 +101,12 @@ public sealed class Program
                 LogUnknownEvents = false
             });
 
-            CommandAllExtension commandAll = client.UseCommandAll(new CommandAllConfiguration(serviceCollection)
+            CommandsExtension commandAll = client.UseCommands(new CommandsConfiguration()
             {
 #if DEBUG
                 DebugGuildId = configuration.GetValue<ulong>("discord:debug_guild_id"),
 #endif
-                PrefixParser = new PrefixParser(configuration.GetSection("discord:prefixes").Get<string[]>() ?? ["n!"])
+                ServiceProvider = serviceProvider
             });
 
             commandAll.AddCommands(typeof(Program).Assembly);
