@@ -15,10 +15,10 @@ public sealed class GuildDownloadCompletedEventHandler(ILogger<GuildDownloadComp
     {
         foreach (DiscordGuild guild in eventArgs.Guilds.Values)
         {
-            _logger.LogDebug("Guild ({GuildId}) is available with {MemberCount:N0} members.", guild.Id, guild.MemberCount);
+            this._logger.LogDebug("Guild ({GuildId}) is available with {MemberCount:N0} members.", guild.Id, guild.MemberCount);
         }
 
-        _logger.LogInformation("{GuildCount:N0} guilds are ready to go!", eventArgs.Guilds.Count);
+        this._logger.LogInformation("{GuildCount:N0} guilds are ready to go!", eventArgs.Guilds.Count);
         return Task.CompletedTask;
     }
 }

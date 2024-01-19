@@ -57,18 +57,18 @@ public sealed partial class MessageCreatedEventHandler(UserActivityTracker userA
                 }
                 catch (NotFoundException error)
                 {
-                    _logger.LogDebug(error, "User {UserId} doesn't exist!", user.Id);
+                    this._logger.LogDebug(error, "User {UserId} doesn't exist!", user.Id);
                     continue;
                 }
                 catch (DiscordException error)
                 {
-                    _logger.LogError(error, "Failed to get member {UserId}", user.Id);
+                    this._logger.LogError(error, "Failed to get member {UserId}", user.Id);
                     continue;
                 }
                 // This shouldn't hit but just in case I guess
                 catch (Exception error)
                 {
-                    _logger.LogError(error, "Unexpected error when grabbing member {UserId}", user.Id);
+                    this._logger.LogError(error, "Unexpected error when grabbing member {UserId}", user.Id);
                     continue;
                 }
             }
@@ -87,12 +87,12 @@ public sealed partial class MessageCreatedEventHandler(UserActivityTracker userA
             }
             catch (DiscordException error)
             {
-                _logger.LogError(error, "Failed to send message to {UserId}", member.Id);
+                this._logger.LogError(error, "Failed to send message to {UserId}", member.Id);
                 continue;
             }
             catch (Exception error)
             {
-                _logger.LogError(error, "Unexpected error when sending message to {UserId}", member.Id);
+                this._logger.LogError(error, "Unexpected error when sending message to {UserId}", member.Id);
                 continue;
             }
         }

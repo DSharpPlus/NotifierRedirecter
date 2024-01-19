@@ -15,7 +15,7 @@ public sealed class UserActivityTracker
     /// </summary>
     private readonly ConcurrentDictionary<ulong, (ulong ChannelId, DateTimeOffset LastActivity)> _tracker = new();
 
-    public UserActivityTracker() => _ = CleanupInactiveUsersAsync();
+    public UserActivityTracker() => _ = this.CleanupInactiveUsersAsync();
 
     public void UpdateUser(ulong userId, ulong channelId) => this._tracker.AddOrUpdate(userId, (channelId, DateTimeOffset.UtcNow), (_, _) => (channelId, DateTimeOffset.UtcNow));
     public async ValueTask<bool> IsActiveAsync(ulong userId, ulong channelId)
