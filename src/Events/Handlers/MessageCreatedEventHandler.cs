@@ -9,31 +9,37 @@ using DSharpPlus.Exceptions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace NotifierRedirecter.Events;
+namespace NotifierRedirecter.Events.Handlers;
 
-public sealed partial class MessageCreatedEventHandler(UserActivityTracker userActivityTracker, Database database, ILogger<MessageCreatedEventHandler>? logger = null)
+public sealed partial class MessageCreatedEventHandler
 {
-    private readonly ILogger<MessageCreatedEventHandler> _logger = logger ?? NullLogger<MessageCreatedEventHandler>.Instance;
+    private readonly ILogger<MessageCreatedEventHandler> _logger;
+    private readonly UserActivityTracker _userActivityTracker;
+    private readonly Database _database;
+
+    public MessageCreatedEventHandler(UserActivityTracker userActivityTracker, Database database, ILogger<MessageCreatedEventHandler>? logger = null)
+    {
+        this._userActivityTracker = userActivityTracker ?? throw new ArgumentNullException(nameof(userActivityTracker));
+        this._database = database ?? throw new ArgumentNullException(nameof(database));
+        this._logger = logger ?? NullLogger<MessageCreatedEventHandler>.Instance;
+    }
 
     public async Task ExecuteAsync(DiscordClient _, MessageCreateEventArgs eventArgs)
     {
-        userActivityTracker.UpdateUser(eventArgs.Author.Id, eventArgs.Channel.Id);
-
+        this._userActivityTracker.UpdateUser(eventArgs.Author.Id, eventArgs.Channel.Id);
         bool shouldSilence = eventArgs.Message.Flags?.HasFlag(MessageFlags.SupressNotifications) ?? false;
-        DiscordMessage message = eventArgs.Message;
-
-        // Explicitly cast to nullable to prevent erroneous compiler warning about it
-        // not being nullable.
-        DiscordMessage? reply = (DiscordMessage?)message.ReferencedMessage;
 
         // Ensure the channel is a redirect channel
-        if (!database.IsRedirect(message.Channel.Id))
+        if (!this._database.IsRedirect(eventArgs.Message.Channel.Id))
         {
             return;
         }
 
-        IEnumerable<DiscordUser> mentionedUsers = message.MentionedUsers;
-        if (reply is not null && reply.MentionedUsers.Contains(reply.Author))
+        // Explicitly cast to nullable to prevent erroneous compiler
+        // warning about it not being nullable.
+        DiscordMessage? reply = (DiscordMessage?)eventArgs.Message.ReferencedMessage;
+        IEnumerable<DiscordUser> mentionedUsers = eventArgs.Message.MentionedUsers;
+        if (reply is not null && reply.MentionedUsers.Contains(reply.Author) && reply.Author != eventArgs.Message.Author)
         {
             mentionedUsers = mentionedUsers.Prepend(eventArgs.Message.ReferencedMessage.Author);
         }
@@ -43,7 +49,11 @@ public sealed partial class MessageCreatedEventHandler(UserActivityTracker userA
         {
             // Check if the user has explicitly opted out of being pinged.
             // Additionally check if the user has recently done activity within the channel.
-            if (user.IsBot || user == message.Author || await userActivityTracker.IsActiveAsync(user.Id, eventArgs.Channel.Id) || database.IsIgnoredUser(user.Id, eventArgs.Guild.Id, eventArgs.Channel.Id) || database.IsBlockedUser(user.Id, eventArgs.Guild.Id, eventArgs.Author.Id))
+            if (user.IsBot
+                || user == eventArgs.Message.Author
+                || await this._userActivityTracker.IsActiveAsync(user.Id, eventArgs.Channel.Id)
+                || this._database.IsIgnoredUser(user.Id, eventArgs.Guild.Id, eventArgs.Channel.Id)
+                || this._database.IsBlockedUser(user.Id, eventArgs.Guild.Id, eventArgs.Author.Id))
             {
                 continue;
             }
@@ -57,7 +67,7 @@ public sealed partial class MessageCreatedEventHandler(UserActivityTracker userA
                 }
                 catch (NotFoundException error)
                 {
-                    this._logger.LogDebug(error, "User {UserId} doesn't exist!", user.Id);
+                    this._logger.LogDebug(error, "User {UserId} could not be found.", user.Id);
                     continue;
                 }
                 catch (DiscordException error)
@@ -76,7 +86,7 @@ public sealed partial class MessageCreatedEventHandler(UserActivityTracker userA
             try
             {
                 DiscordMessageBuilder builder = new DiscordMessageBuilder()
-                    .WithContent($"You were pinged by {message.Author.Mention} in {eventArgs.Channel.Mention}. [Jump! \u2197]({message.JumpLink})");
+                    .WithContent($"You were pinged by {eventArgs.Message.Author.Mention} in {eventArgs.Channel.Mention}. [Jump! \u2197]({eventArgs.Message.JumpLink})");
 
                 if (shouldSilence)
                 {

@@ -5,12 +5,13 @@ using DSharpPlus.EventArgs;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace NotifierRedirecter.Events;
+namespace NotifierRedirecter.Events.Handlers;
 
-public sealed class GuildDownloadCompletedEventHandler(ILogger<GuildDownloadCompletedEventHandler>? logger = null)
+public sealed class GuildDownloadCompletedEventHandler
 {
-    private readonly ILogger<GuildDownloadCompletedEventHandler> _logger = logger ?? NullLogger<GuildDownloadCompletedEventHandler>.Instance;
+    private readonly ILogger<GuildDownloadCompletedEventHandler> _logger;
 
+    public GuildDownloadCompletedEventHandler(ILogger<GuildDownloadCompletedEventHandler>? logger = null) => this._logger = logger ?? NullLogger<GuildDownloadCompletedEventHandler>.Instance;
     public Task ExecuteAsync(DiscordClient _, GuildDownloadCompletedEventArgs eventArgs)
     {
         foreach (DiscordGuild guild in eventArgs.Guilds.Values)

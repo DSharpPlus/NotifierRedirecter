@@ -8,7 +8,7 @@ using DSharpPlus.CommandAll.Parsers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using NotifierRedirecter.Events;
+using NotifierRedirecter.Events.Handlers;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
@@ -35,8 +35,17 @@ public sealed class Program
         serviceCollection.AddSingleton(configuration);
         serviceCollection.AddLogging(logger =>
         {
-            string loggingFormat = configuration.GetValue("Logging:Format", "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] [{Level:u4}] {SourceContext}: {Message:lj}{NewLine}{Exception}") ?? throw new InvalidOperationException("Logging:Format is null");
-            string filename = configuration.GetValue("Logging:Filename", "yyyy'-'MM'-'dd' 'HH'.'mm'.'ss") ?? throw new InvalidOperationException("Logging:Filename is null");
+            string? loggingFormat = configuration.GetValue<string?>("Logging:Format");
+            if (string.IsNullOrWhiteSpace(loggingFormat))
+            {
+                loggingFormat = "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] [{Level:u4}] {SourceContext}: {Message:lj}{NewLine}{Exception}";
+            }
+
+            string? filename = configuration.GetValue<string?>("Logging:Filename");
+            if (!string.IsNullOrWhiteSpace(filename))
+            {
+                filename = "yyyy'-'MM'-'dd' 'HH'.'mm'.'ss";
+            }
 
             // Log both to console and the file
             LoggerConfiguration loggerConfiguration = new LoggerConfiguration()
@@ -64,7 +73,7 @@ public sealed class Program
                     [ConsoleThemeStyle.LevelFatal] = "\x1b[97;91m"
                 }))
             .WriteTo.File(
-                $"logs/{DateTime.Now.ToUniversalTime().ToString("yyyy'-'MM'-'dd' 'HH'.'mm'.'ss", CultureInfo.InvariantCulture)}-.log",
+                $"logs/{DateTime.Now.ToUniversalTime().ToString(filename, CultureInfo.InvariantCulture)}-.log",
                 formatProvider: CultureInfo.InvariantCulture,
                 outputTemplate: loggingFormat,
                 rollingInterval: RollingInterval.Day
@@ -73,12 +82,10 @@ public sealed class Program
             // Allow specific namespace log level overrides, which allows us to hush output from things like the database basic SELECT queries on the Information level.
             foreach (IConfigurationSection logOverride in configuration.GetSection("logging:overrides").GetChildren())
             {
-                if (logOverride.Value is null || !Enum.TryParse(logOverride.Value, out LogEventLevel logEventLevel))
+                if (!string.IsNullOrWhiteSpace(logOverride.Value) && Enum.TryParse(logOverride.Value, out LogEventLevel logEventLevel))
                 {
-                    continue;
+                    loggerConfiguration.MinimumLevel.Override(logOverride.Key, logEventLevel);
                 }
-
-                loggerConfiguration.MinimumLevel.Override(logOverride.Key, logEventLevel);
             }
 
             logger.AddSerilog(loggerConfiguration.CreateLogger());
@@ -93,10 +100,18 @@ public sealed class Program
         // Register the Discord sharded client to the service collection
         serviceCollection.AddSingleton((serviceProvider) =>
         {
+            ILogger<Program> logger = serviceProvider.GetRequiredService<ILogger<Program>>();
             IConfiguration configuration = serviceProvider.GetRequiredService<IConfiguration>();
+            string? discordToken = configuration.GetValue<string>("discord:token");
+            if (string.IsNullOrWhiteSpace(discordToken))
+            {
+                logger.LogCritical("Discord:Token was not provided to the application. Please provide a token in the configuration file, through an environment variable, or as a command line argument.");
+                Environment.Exit(1);
+            }
+
             DiscordClient client = new(new DiscordConfiguration()
             {
-                Token = configuration.GetValue<string>("discord:token") ?? throw new InvalidOperationException("Discord bot token is null."),
+                Token = discordToken,
                 Intents = DiscordIntents.Guilds | DiscordIntents.GuildMessages | DiscordIntents.MessageContents,
                 LoggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>(),
                 LogUnknownEvents = false

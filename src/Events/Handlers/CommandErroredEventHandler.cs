@@ -10,7 +10,7 @@ using DSharpPlus.Entities;
 using DSharpPlus.Exceptions;
 using Humanizer;
 
-namespace NotifierRedirecter.Events;
+namespace NotifierRedirecter.Events.Handlers;
 
 public sealed class CommandErroredEventHandler
 {
