@@ -24,24 +24,25 @@ public sealed partial class MessageCreatedEventHandler
         this._logger = logger ?? NullLogger<MessageCreatedEventHandler>.Instance;
     }
 
+    [DiscordEvent(DiscordIntents.GuildMessages | DiscordIntents.MessageContents)]
     public async Task ExecuteAsync(DiscordClient _, MessageCreateEventArgs eventArgs)
     {
         this._userActivityTracker.UpdateUser(eventArgs.Author.Id, eventArgs.Channel.Id);
         bool shouldSilence = eventArgs.Message.Flags?.HasFlag(MessageFlags.SupressNotifications) ?? false;
 
         // Ensure the channel is a redirect channel
-        if (!this._database.IsRedirect(eventArgs.Message.Channel.Id))
+        if (eventArgs.Message.Channel is null || !this._database.IsRedirect(eventArgs.Message.Channel.Id))
         {
             return;
         }
 
         // Explicitly cast to nullable to prevent erroneous compiler
         // warning about it not being nullable.
-        DiscordMessage? reply = (DiscordMessage?)eventArgs.Message.ReferencedMessage;
+        DiscordMessage? reply = eventArgs.Message.ReferencedMessage;
         IEnumerable<DiscordUser> mentionedUsers = eventArgs.Message.MentionedUsers;
-        if (reply is not null && reply.MentionedUsers.Contains(reply.Author) && reply.Author != eventArgs.Message.Author)
+        if (reply is not null && reply.MentionedUsers.Contains(reply.Author) && reply.Author! != eventArgs.Message.Author!)
         {
-            mentionedUsers = mentionedUsers.Prepend(eventArgs.Message.ReferencedMessage.Author);
+            mentionedUsers = mentionedUsers.Prepend(reply.Author!);
         }
 
         // Only mention the users that the message intended to mention.
@@ -50,7 +51,7 @@ public sealed partial class MessageCreatedEventHandler
             // Check if the user has explicitly opted out of being pinged.
             // Additionally check if the user has recently done activity within the channel.
             if (user.IsBot
-                || user == eventArgs.Message.Author
+                || user == eventArgs.Message.Author!
                 || await this._userActivityTracker.IsActiveAsync(user.Id, eventArgs.Channel.Id)
                 || this._database.IsIgnoredUser(user.Id, eventArgs.Guild.Id, eventArgs.Channel.Id)
                 || this._database.IsBlockedUser(user.Id, eventArgs.Guild.Id, eventArgs.Author.Id))
@@ -86,7 +87,7 @@ public sealed partial class MessageCreatedEventHandler
             try
             {
                 DiscordMessageBuilder builder = new DiscordMessageBuilder()
-                    .WithContent($"You were pinged by {eventArgs.Message.Author.Mention} in {eventArgs.Channel.Mention}. [Jump! \u2197]({eventArgs.Message.JumpLink})");
+                    .WithContent($"You were pinged by {eventArgs.Message.Author!.Mention} in {eventArgs.Channel.Mention}. [Jump! \u2197]({eventArgs.Message.JumpLink})");
 
                 if (shouldSilence)
                 {

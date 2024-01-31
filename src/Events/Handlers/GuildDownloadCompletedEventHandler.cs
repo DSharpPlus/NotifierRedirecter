@@ -10,8 +10,9 @@ namespace NotifierRedirecter.Events.Handlers;
 public sealed class GuildDownloadCompletedEventHandler
 {
     private readonly ILogger<GuildDownloadCompletedEventHandler> _logger;
-
     public GuildDownloadCompletedEventHandler(ILogger<GuildDownloadCompletedEventHandler>? logger = null) => this._logger = logger ?? NullLogger<GuildDownloadCompletedEventHandler>.Instance;
+
+    [DiscordEvent(DiscordIntents.Guilds)]
     public Task ExecuteAsync(DiscordClient _, GuildDownloadCompletedEventArgs eventArgs)
     {
         foreach (DiscordGuild guild in eventArgs.Guilds.Values)

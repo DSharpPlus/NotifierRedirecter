@@ -3,12 +3,11 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
 using DSharpPlus;
-using DSharpPlus.CommandAll;
-using DSharpPlus.CommandAll.Parsers;
+using DSharpPlus.Commands;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using NotifierRedirecter.Events.Handlers;
+using NotifierRedirecter.Events;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
@@ -93,13 +92,17 @@ public sealed class Program
 
         serviceCollection.AddSingleton<Database>();
         serviceCollection.AddSingleton<UserActivityTracker>();
-        serviceCollection.AddSingleton<GuildDownloadCompletedEventHandler>();
-        serviceCollection.AddSingleton<MessageCreatedEventHandler>();
-        serviceCollection.AddSingleton<TypingStartedEventHandler>();
+        serviceCollection.AddSingleton((serviceProvider) =>
+        {
+            DiscordEventManager eventManager = new(serviceProvider);
+            eventManager.GatherEventHandlers(typeof(Program).Assembly);
+            return eventManager;
+        });
 
         // Register the Discord sharded client to the service collection
         serviceCollection.AddSingleton((serviceProvider) =>
         {
+            DiscordEventManager eventManager = serviceProvider.GetRequiredService<DiscordEventManager>();
             ILogger<Program> logger = serviceProvider.GetRequiredService<ILogger<Program>>();
             IConfiguration configuration = serviceProvider.GetRequiredService<IConfiguration>();
             string? discordToken = configuration.GetValue<string>("discord:token");
@@ -117,20 +120,17 @@ public sealed class Program
                 LogUnknownEvents = false
             });
 
-            CommandAllExtension commandAll = client.UseCommandAll(new CommandAllConfiguration(serviceCollection)
+            CommandsExtension commands = client.UseCommands(new CommandsConfiguration()
             {
+                ServiceProvider = serviceProvider,
 #if DEBUG
-                DebugGuildId = configuration.GetValue<ulong>("discord:debug_guild_id"),
+                DebugGuildId = configuration.GetValue<ulong>("discord:debug_guild_id")
 #endif
-                PrefixParser = new PrefixParser(configuration.GetSection("discord:prefixes").Get<string[]>() ?? ["n!"])
             });
 
-            commandAll.AddCommands(typeof(Program).Assembly);
-            commandAll.CommandErrored += CommandErroredEventHandler.ExecuteAsync;
-            client.GuildDownloadCompleted += serviceProvider.GetRequiredService<GuildDownloadCompletedEventHandler>().ExecuteAsync;
-            client.MessageCreated += serviceProvider.GetRequiredService<MessageCreatedEventHandler>().ExecuteAsync;
-            client.TypingStarted += serviceProvider.GetRequiredService<TypingStartedEventHandler>().ExecuteAsync;
-
+            commands.AddCommands(typeof(Program).Assembly);
+            eventManager.RegisterEventHandlers(client);
+            eventManager.RegisterEventHandlers(commands);
             return client;
         });
 
