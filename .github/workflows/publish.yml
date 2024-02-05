@@ -38,5 +38,5 @@ jobs:
           push: true
           build-args: VERSION=${{ steps.previoustag.outputs.tag }}
           tags: |
-            ghcr.io/instellate/notifierredirecter:latest
-            ghcr.io/instellate/notifierredirecter:${{ steps.previoustag.outputs.tag }}
+            ghcr.io/dsharpplus/notifierredirecter:latest
+            ghcr.io/dsharpplus/notifierredirecter:${{ steps.previoustag.outputs.tag }}
