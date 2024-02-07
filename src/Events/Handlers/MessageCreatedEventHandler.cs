@@ -28,7 +28,7 @@ public sealed partial class MessageCreatedEventHandler
     public async Task ExecuteAsync(DiscordClient _, MessageCreateEventArgs eventArgs)
     {
         this._userActivityTracker.UpdateUser(eventArgs.Author.Id, eventArgs.Channel.Id);
-        bool shouldSilence = eventArgs.Message.Flags?.HasFlag(MessageFlags.SupressNotifications) ?? false;
+        bool shouldSilence = eventArgs.Message.Flags?.HasFlag(MessageFlags.SuppressNotifications) ?? false;
 
         // Ensure the channel is a redirect channel
         if (eventArgs.Message.Channel is null || !this._database.IsRedirect(eventArgs.Message.Channel.Id))

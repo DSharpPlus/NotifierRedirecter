@@ -4,6 +4,8 @@ using System.Globalization;
 using System.Threading.Tasks;
 using DSharpPlus;
 using DSharpPlus.Commands;
+using DSharpPlus.Commands.Processors.SlashCommands;
+using DSharpPlus.Commands.Processors.TextCommands;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -115,7 +117,7 @@ public sealed class Program
             DiscordClient client = new(new DiscordConfiguration()
             {
                 Token = discordToken,
-                Intents = DiscordIntents.Guilds | DiscordIntents.GuildMessages | DiscordIntents.MessageContents,
+                Intents = TextCommandProcessor.RequiredIntents | SlashCommandProcessor.RequiredIntents | DiscordIntents.MessageContents,
                 LoggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>(),
                 LogUnknownEvents = false
             });
