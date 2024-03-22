@@ -3,10 +3,9 @@ version: "3.9"
 services:
   notifier_redirecter:
     build: .
-    #image: ghcr.io/instellate/notifierredirecter:latest
+    #image: ghcr.io/dsharpplus/notifierredirecter:latest
     restart: unless-stopped
     env_file: .env
     volumes:
       - ./database.db:/src/database.db
       - ./logs:/src/logs
-      - ./res/config.json:/src/config.json

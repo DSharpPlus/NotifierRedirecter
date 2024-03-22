@@ -1,0 +1,3 @@
+[submodule "libs/DSharpPlus"]
+	path = libs/DSharpPlus
+	url = https://github.com/DSharpPlus/DSharpPlus.git
