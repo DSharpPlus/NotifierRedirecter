@@ -5,7 +5,7 @@ WORKDIR /src
 COPY ./ /src
 RUN apk add git \
     && git submodule update --init --recursive \
-    && sed -i "s/<Version>.*<\/Version>/<Version>${VERSION}<\/Version>/" src/NotifierRedirector.csproj \
+    && sed -i "s/<Version>.*<\/Version>/<Version>${VERSION}<\/Version>/" src/NotifierRedirecter.csproj \
     && dotnet publish -c Release -r linux-musl-x64
 
 FROM mcr.microsoft.com/dotnet/runtime:8.0-alpine
@@ -17,4 +17,4 @@ RUN apk upgrade --update-cache --available \
     && apk del git \
     && rm -rf /var/cache/apk/*
 
-ENTRYPOINT /src/NotifierRedirector
+ENTRYPOINT /src/NotifierRedirecter
