@@ -13,7 +13,7 @@ public sealed class GuildDownloadCompletedEventHandler
     public GuildDownloadCompletedEventHandler(ILogger<GuildDownloadCompletedEventHandler>? logger = null) => this._logger = logger ?? NullLogger<GuildDownloadCompletedEventHandler>.Instance;
 
     [DiscordEvent(DiscordIntents.Guilds)]
-    public Task ExecuteAsync(DiscordClient _, GuildDownloadCompletedEventArgs eventArgs)
+    public Task ExecuteAsync(DiscordClient client, GuildDownloadCompletedEventArgs eventArgs)
     {
         foreach (DiscordGuild guild in eventArgs.Guilds.Values)
         {
@@ -21,6 +21,6 @@ public sealed class GuildDownloadCompletedEventHandler
         }
 
         this._logger.LogInformation("{GuildCount:N0} guilds are ready to go!", eventArgs.Guilds.Count);
-        return Task.CompletedTask;
+        return client.UpdateStatusAsync(new DiscordActivity("Messing around with your notifications...", ActivityType.Custom));
     }
 }

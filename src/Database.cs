@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
-using System.Data;
 using Microsoft.Data.Sqlite;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using NotifierRedirecter.Configuration;
 
 namespace NotifierRedirecter;
 
@@ -16,10 +15,10 @@ public sealed class Database
     private readonly ILogger<Database> _logger;
     private readonly FrozenDictionary<PreparedCommandType, SqliteCommand> _preparedCommands;
 
-    public Database(IConfiguration configuration, ILogger<Database>? logger = null)
+    public Database(NotifierConfiguration configuration, ILogger<Database>? logger = null)
     {
         this._logger = logger ?? NullLogger<Database>.Instance;
-        string? dataSource = configuration.GetValue("database:path", "database.db");
+        string? dataSource = configuration.Database.Path;
         if (string.IsNullOrWhiteSpace(dataSource))
         {
             this._logger.LogCritical("Database path is not set.");
@@ -32,8 +31,9 @@ public sealed class Database
             Cache = SqliteCacheMode.Private,
             DataSource = dataSource,
             Mode = SqliteOpenMode.ReadWriteCreate,
-            Password = configuration.GetValue<string?>("database:password")
+            Password = configuration.Database.Password
         }.ToString());
+
         this._preparedCommands = this.PrepareCommands();
         this.PrepareDatabase();
     }

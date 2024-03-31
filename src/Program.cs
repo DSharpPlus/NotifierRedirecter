@@ -6,139 +6,137 @@ using DSharpPlus;
 using DSharpPlus.Commands;
 using DSharpPlus.Commands.Processors.SlashCommands;
 using DSharpPlus.Commands.Processors.TextCommands;
+using DSharpPlus.Commands.Processors.TextCommands.Parsing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NotifierRedirecter.Configuration;
 using NotifierRedirecter.Events;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
+using DSharpPlusDiscordConfiguration = DSharpPlus.DiscordConfiguration;
+using SerilogLoggerConfiguration = Serilog.LoggerConfiguration;
 
 namespace NotifierRedirecter;
 
 public sealed class Program
 {
-    internal static IServiceProvider ServiceProvider = null!;
-
     public static async Task Main(string[] args)
     {
-        ConfigurationBuilder configurationBuilder = new();
-        configurationBuilder.Sources.Clear();
-        configurationBuilder.AddJsonFile("config.json", true, true);
-#if DEBUG
-        configurationBuilder.AddJsonFile("config.debug.json", true, true);
-#endif
-        configurationBuilder.AddEnvironmentVariables("NOTIFIER_REDIRECTER__");
-        configurationBuilder.AddCommandLine(args);
-
-        IConfiguration configuration = configurationBuilder.Build();
-        ServiceCollection serviceCollection = new();
-        serviceCollection.AddSingleton(configuration);
-        serviceCollection.AddLogging(logger =>
+        IServiceCollection services = new ServiceCollection();
+        services.AddSingleton(serviceProvider =>
         {
-            string? loggingFormat = configuration.GetValue<string?>("Logging:Format");
-            if (string.IsNullOrWhiteSpace(loggingFormat))
+            ConfigurationBuilder configurationBuilder = new();
+            configurationBuilder.Sources.Clear();
+            configurationBuilder.AddJsonFile("config.json", true, true);
+#if DEBUG
+            configurationBuilder.AddJsonFile("config.debug.json", true, true);
+#endif
+            configurationBuilder.AddEnvironmentVariables("NotifierRedirecter__");
+            configurationBuilder.AddCommandLine(args);
+
+            IConfiguration configuration = configurationBuilder.Build();
+            NotifierConfiguration? notifierConfiguration = configuration.Get<NotifierConfiguration>();
+            if (notifierConfiguration is null)
             {
-                loggingFormat = "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] [{Level:u4}] {SourceContext}: {Message:lj}{NewLine}{Exception}";
+                Console.WriteLine("No configuration found! Please modify the config file, set environment variables or pass command line arguments. Exiting...");
+                Environment.Exit(1);
             }
 
-            string? filename = configuration.GetValue<string?>("Logging:Filename");
-            if (!string.IsNullOrWhiteSpace(filename))
-            {
-                filename = "yyyy'-'MM'-'dd' 'HH'.'mm'.'ss";
-            }
+            return notifierConfiguration;
+        });
 
-            // Log both to console and the file
-            LoggerConfiguration loggerConfiguration = new LoggerConfiguration()
-            .MinimumLevel.Is(configuration.GetValue("Logging:Level", LogEventLevel.Debug))
-            .WriteTo.Console(
+        services.AddLogging(logging =>
+        {
+            IServiceProvider serviceProvider = logging.Services.BuildServiceProvider();
+            NotifierConfiguration notifierConfiguration = serviceProvider.GetRequiredService<NotifierConfiguration>();
+            SerilogLoggerConfiguration serilogLoggerConfiguration = new();
+            serilogLoggerConfiguration.MinimumLevel.Is(notifierConfiguration.Logger.LogLevel);
+            serilogLoggerConfiguration.WriteTo.Console(
                 formatProvider: CultureInfo.InvariantCulture,
-                outputTemplate: loggingFormat,
-                theme: new AnsiConsoleTheme(new Dictionary<ConsoleThemeStyle, string>
-                {
-                    [ConsoleThemeStyle.Text] = "\x1b[0m",
-                    [ConsoleThemeStyle.SecondaryText] = "\x1b[90m",
-                    [ConsoleThemeStyle.TertiaryText] = "\x1b[90m",
-                    [ConsoleThemeStyle.Invalid] = "\x1b[31m",
-                    [ConsoleThemeStyle.Null] = "\x1b[95m",
-                    [ConsoleThemeStyle.Name] = "\x1b[93m",
-                    [ConsoleThemeStyle.String] = "\x1b[96m",
-                    [ConsoleThemeStyle.Number] = "\x1b[95m",
-                    [ConsoleThemeStyle.Boolean] = "\x1b[95m",
-                    [ConsoleThemeStyle.Scalar] = "\x1b[95m",
-                    [ConsoleThemeStyle.LevelVerbose] = "\x1b[34m",
-                    [ConsoleThemeStyle.LevelDebug] = "\x1b[90m",
-                    [ConsoleThemeStyle.LevelInformation] = "\x1b[36m",
-                    [ConsoleThemeStyle.LevelWarning] = "\x1b[33m",
-                    [ConsoleThemeStyle.LevelError] = "\x1b[31m",
-                    [ConsoleThemeStyle.LevelFatal] = "\x1b[97;91m"
-                }))
-            .WriteTo.File(
-                $"logs/{DateTime.Now.ToUniversalTime().ToString(filename, CultureInfo.InvariantCulture)}-.log",
-                formatProvider: CultureInfo.InvariantCulture,
-                outputTemplate: loggingFormat,
-                rollingInterval: RollingInterval.Day
+                outputTemplate: notifierConfiguration.Logger.Format,
+                theme: AnsiConsoleTheme.Code
             );
 
-            // Allow specific namespace log level overrides, which allows us to hush output from things like the database basic SELECT queries on the Information level.
-            foreach (IConfigurationSection logOverride in configuration.GetSection("logging:overrides").GetChildren())
+            serilogLoggerConfiguration.WriteTo.File(
+                formatProvider: CultureInfo.InvariantCulture,
+                path: $"{notifierConfiguration.Logger.Path}/{notifierConfiguration.Logger.FileName}.log",
+                rollingInterval: notifierConfiguration.Logger.RollingInterval,
+                outputTemplate: notifierConfiguration.Logger.Format
+            );
+
+            // Sometimes the user/dev needs more or less information about a speific part of the bot
+            // so we allow them to override the log level for a specific namespace.
+            if (notifierConfiguration.Logger.Overrides.Count > 0)
             {
-                if (!string.IsNullOrWhiteSpace(logOverride.Value) && Enum.TryParse(logOverride.Value, out LogEventLevel logEventLevel))
+                foreach ((string key, LogEventLevel value) in notifierConfiguration.Logger.Overrides)
                 {
-                    loggerConfiguration.MinimumLevel.Override(logOverride.Key, logEventLevel);
+                    serilogLoggerConfiguration.MinimumLevel.Override(key, value);
                 }
             }
 
-            logger.AddSerilog(loggerConfiguration.CreateLogger());
+            logging.AddSerilog(serilogLoggerConfiguration.CreateLogger());
         });
 
-        serviceCollection.AddSingleton<Database>();
-        serviceCollection.AddSingleton<UserActivityTracker>();
-        serviceCollection.AddSingleton((serviceProvider) =>
+        services.AddSingleton<Database>();
+        services.AddSingleton<UserActivityTracker>();
+        services.AddSingleton((serviceProvider) =>
         {
             DiscordEventManager eventManager = new(serviceProvider);
             eventManager.GatherEventHandlers(typeof(Program).Assembly);
             return eventManager;
         });
 
-        // Register the Discord sharded client to the service collection
-        serviceCollection.AddSingleton((serviceProvider) =>
+        services.AddSingleton(serviceProvider =>
         {
-            DiscordEventManager eventManager = serviceProvider.GetRequiredService<DiscordEventManager>();
-            ILogger<Program> logger = serviceProvider.GetRequiredService<ILogger<Program>>();
-            IConfiguration configuration = serviceProvider.GetRequiredService<IConfiguration>();
-            string? discordToken = configuration.GetValue<string>("discord:token");
-            if (string.IsNullOrWhiteSpace(discordToken))
+            NotifierConfiguration notifierConfiguration = serviceProvider.GetRequiredService<NotifierConfiguration>();
+            if (notifierConfiguration.Discord is null || string.IsNullOrWhiteSpace(notifierConfiguration.Discord.Token))
             {
-                logger.LogCritical("Discord:Token was not provided to the application. Please provide a token in the configuration file, through an environment variable, or as a command line argument.");
+                serviceProvider.GetRequiredService<ILogger<Program>>().LogCritical("Discord token is not set! Exiting...");
                 Environment.Exit(1);
             }
 
-            DiscordClient client = new(new DiscordConfiguration()
+            DiscordShardedClient discordClient = new(new DSharpPlusDiscordConfiguration
             {
-                Token = discordToken,
-                Intents = TextCommandProcessor.RequiredIntents | SlashCommandProcessor.RequiredIntents | DiscordIntents.MessageContents,
+                Token = notifierConfiguration.Discord.Token,
+                Intents = TextCommandProcessor.RequiredIntents | SlashCommandProcessor.RequiredIntents | DiscordIntents.GuildVoiceStates | DiscordIntents.MessageContents,
                 LoggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>(),
-                LogUnknownEvents = false
             });
 
-            CommandsExtension commands = client.UseCommands(new CommandsConfiguration()
-            {
-                ServiceProvider = serviceProvider,
-#if DEBUG
-                DebugGuildId = configuration.GetValue<ulong>("discord:debug_guild_id")
-#endif
-            });
-
-            commands.AddCommands(typeof(Program).Assembly);
-            eventManager.RegisterEventHandlers(client);
-            eventManager.RegisterEventHandlers(commands);
-            return client;
+            return discordClient;
         });
 
-        ServiceProvider = serviceCollection.BuildServiceProvider();
-        DiscordClient client = ServiceProvider.GetRequiredService<DiscordClient>();
-        await client.ConnectAsync();
+        // Almost start the program
+        IServiceProvider serviceProvider = services.BuildServiceProvider();
+        NotifierConfiguration notifierConfiguration = serviceProvider.GetRequiredService<NotifierConfiguration>();
+        DiscordShardedClient discordClient = serviceProvider.GetRequiredService<DiscordShardedClient>();
+        DiscordEventManager eventManager = serviceProvider.GetRequiredService<DiscordEventManager>();
+
+        // Register extensions here since these involve asynchronous operations
+        IReadOnlyDictionary<int, CommandsExtension> commandsExtensions = await discordClient.UseCommandsAsync(new CommandsConfiguration()
+        {
+            ServiceProvider = serviceProvider,
+            DebugGuildId = notifierConfiguration.Discord.GuildId
+        });
+
+        // Iterate through each Discord shard
+        foreach (CommandsExtension commandsExtension in commandsExtensions.Values)
+        {
+            // Add all commands by scanning the current assembly
+            commandsExtension.AddCommands(typeof(Program).Assembly);
+            TextCommandProcessor textCommandProcessor = new(new()
+            {
+                PrefixResolver = new DefaultPrefixResolver(notifierConfiguration.Discord.Prefix).ResolvePrefixAsync
+            });
+
+            // Add text commands (h!ping) and slash commands (/ping)
+            await commandsExtension.AddProcessorsAsync(textCommandProcessor, new SlashCommandProcessor());
+            eventManager.RegisterEventHandlers(commandsExtension);
+        }
+
+        eventManager.RegisterEventHandlers(discordClient);
+        await discordClient.StartAsync();
         await Task.Delay(-1);
     }
 }
