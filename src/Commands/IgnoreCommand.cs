@@ -18,7 +18,7 @@ public sealed class IgnoreCommand
     public IgnoreCommand(Database database) => this._database = database;
 
     [Command("add"), Description("Disable notifications from me.")]
-    public ValueTask AddAsync(CommandContext context, [Description("Which channel to stop receiving notifications in. If empty, I'll stop sending notifications entirely.")] DiscordChannel? channel = null)
+    public ValueTask AddAsync(CommandContext context, [Description("Which channel to stop receiving notifications in. If empty, I'll stop sending notifications entirely")] DiscordChannel? channel = null)
     {
         if (this._database.IsIgnoredUser(context.User.Id, context.Guild!.Id, channel?.Id))
         {
