@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using DSharpPlus;
 using DSharpPlus.Entities;
@@ -45,6 +46,8 @@ public sealed partial class MessageCreatedEventHandler
             mentionedUsers = mentionedUsers.Prepend(reply.Author!);
         }
 
+        List<(string Formatting, string Message, bool IsUppercase)>? formattings = null;
+
         // Only mention the users that the message intended to mention.
         foreach (DiscordUser user in mentionedUsers)
         {
@@ -87,7 +90,7 @@ public sealed partial class MessageCreatedEventHandler
             try
             {
                 DiscordMessageBuilder builder = new DiscordMessageBuilder()
-                    .WithContent($"You were pinged by {eventArgs.Message.Author!.Mention} in {eventArgs.Channel.Mention}. [Jump! \u2197]({eventArgs.Message.JumpLink})");
+                    .WithContent(GetDMContent(eventArgs, member, ref formattings));
 
                 if (shouldSilence)
                 {
@@ -107,5 +110,23 @@ public sealed partial class MessageCreatedEventHandler
                 continue;
             }
         }
+    }
+
+    [GeneratedRegex(@"^(?<FORMAT>((#{1,3}\s+)|(>{1}\s+)|(>{3}\s+)|(\d+\.\s+))+)(?<MESSAGE>.*<\@!?(\d+?)>.*)", RegexOptions.Compiled | RegexOptions.Multiline | RegexOptions.ExplicitCapture)]
+    private static partial Regex CompileTimeFormattingRegex();
+
+    private static string GetDMContent(MessageCreateEventArgs eventArgs, DiscordMember member, ref List<(string Formatting, string Message, bool IsUppercase)>? formattings)
+    {
+        formattings ??= CompileTimeFormattingRegex()
+                .Matches(eventArgs.Message.Content)
+                .Select(match => (match.Groups[1].Value, match.Groups[2].Value, match.Groups[2].Value.Any(x => char.IsLetter(x) && !char.IsUpper(x)) == false))
+                .ToList();
+
+        string userMention = member.Mention;
+        (string Formatting, string Message, bool IsUppercase)? match = formattings.FirstOrDefault(x => x.Message.Contains(userMention));
+
+        return match?.IsUppercase == true
+            ? $"{match?.Formatting}YOU WERE PINGED BY {eventArgs.Message.Author!.Mention} IN {eventArgs.Channel.Mention}!! [JUMP!!! \u2197]({eventArgs.Message.JumpLink})"
+            : $"{match?.Formatting}You were pinged by {eventArgs.Message.Author!.Mention} in {eventArgs.Channel.Mention}. [Jump! \u2197]({eventArgs.Message.JumpLink})";
     }
 }
