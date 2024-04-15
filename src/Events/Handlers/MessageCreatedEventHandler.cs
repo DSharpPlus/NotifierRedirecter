@@ -113,16 +113,26 @@ public sealed partial class MessageCreatedEventHandler
     }
 
     [GeneratedRegex(@"^(?<FORMAT>((#{1,3}\s+)|(>{1}\s+)|(>{3}\s+)|(\d+\.\s+))+)(?<MESSAGE>.*<\@!?(\d+?)>.*)", RegexOptions.Compiled | RegexOptions.Multiline | RegexOptions.ExplicitCapture)]
-    private static partial Regex CompileTimeFormattingRegex();
+    private static partial Regex FormattingRegex();
 
+    /// <summary>
+    /// Gets the content of the direct message to send to the user.
+    /// </summary>
+    /// <param name="eventArgs">The message event arguements to base formatting off of.</param>
+    /// <param name="member">The discord member being direct messaged.</param>
+    /// <param name="formattings">Cached formattings.</param>
+    /// <returns></returns>
     private static string GetDMContent(MessageCreateEventArgs eventArgs, DiscordMember member, ref List<(string Formatting, string Message, bool IsUppercase)>? formattings)
     {
-        formattings ??= CompileTimeFormattingRegex()
+        // Setup the formattings lookup if they haven't been cached yet.
+        formattings ??= FormattingRegex()
                 .Matches(eventArgs.Message.Content)
                 .Select(match => (match.Groups[1].Value, match.Groups[2].Value, match.Groups[2].Value.Any(x => char.IsLetter(x) && !char.IsUpper(x)) == false))
                 .ToList();
 
         string userMention = member.Mention;
+
+        // Grab formatting of the message where the user is mentioned.
         (string Formatting, string Message, bool IsUppercase)? match = formattings.FirstOrDefault(x => x.Message.Contains(userMention));
 
         return match?.IsUppercase == true
