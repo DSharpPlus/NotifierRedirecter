@@ -90,7 +90,7 @@ public sealed partial class MessageCreatedEventHandler
             try
             {
                 DiscordMessageBuilder builder = new DiscordMessageBuilder()
-                    .WithContent(GetDMContent(eventArgs, member, ref formattings));
+                    .WithContent(GetDirectMessageContent(eventArgs, member, ref formattings));
 
                 if (shouldSilence)
                 {
@@ -122,7 +122,7 @@ public sealed partial class MessageCreatedEventHandler
     /// <param name="member">The discord member being direct messaged.</param>
     /// <param name="formattings">Cached formattings.</param>
     /// <returns></returns>
-    private static string GetDMContent(MessageCreateEventArgs eventArgs, DiscordMember member, ref List<(string Formatting, string Message, bool IsUppercase)>? formattings)
+    private static string GetDirectMessageContent(MessageCreateEventArgs eventArgs, DiscordMember member, ref List<(string Formatting, string Message, bool IsUppercase)>? formattings)
     {
         // Setup the formattings lookup if they haven't been cached yet.
         formattings ??= FormattingRegex()
