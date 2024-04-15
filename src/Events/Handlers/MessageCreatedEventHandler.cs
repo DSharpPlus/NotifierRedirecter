@@ -112,7 +112,7 @@ public sealed partial class MessageCreatedEventHandler
         }
     }
 
-    [GeneratedRegex(@"^(?<FORMAT>((#{1,3}\s+)|(>{1}\s+)|(>{3}\s+)|(\d+\.\s+))+)(?<MESSAGE>.*<\@!?(\d+?)>.*)", RegexOptions.Compiled | RegexOptions.Multiline | RegexOptions.ExplicitCapture)]
+    [GeneratedRegex(@"^(?<FORMAT>((#{1,3}\s+)|(>{1}\s+)|(>{3}\s+)|(-\s+)|(\*\s+)|(\d+\.\s+))+)(?<MESSAGE>.*<\@!?(\d+?)>.*)", RegexOptions.Compiled | RegexOptions.Multiline | RegexOptions.ExplicitCapture)]
     private static partial Regex FormattingRegex();
 
     /// <summary>
