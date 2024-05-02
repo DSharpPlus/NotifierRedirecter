@@ -2,11 +2,9 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Text;
 using System.Threading.Tasks;
-using DSharpPlus;
 using DSharpPlus.Commands;
 using DSharpPlus.Commands.ContextChecks;
 using DSharpPlus.Commands.Trees;
-using DSharpPlus.Commands.Trees.Attributes;
 using DSharpPlus.Entities;
 
 namespace NotifierRedirecter.Commands;
@@ -18,7 +16,7 @@ public sealed class RedirectCommand
     public RedirectCommand(Database database) => this._database = database;
 
     [Command("add"), Description("Start redirecting pings from this channel into user's DMs.")]
-    [RequirePermissions(Permissions.None, Permissions.ManageMessages)]
+    [RequirePermissions(DiscordPermissions.None, DiscordPermissions.ManageMessages)]
     public ValueTask AddAsync(CommandContext context, [Description("Which channel to start listening for pings.")] DiscordChannel channel)
     {
         if (this._database.IsRedirect(channel.Id))
@@ -31,7 +29,7 @@ public sealed class RedirectCommand
     }
 
     [Command("remove"), Description("Stop redirecting notifications from this channel into user's DMs.")]
-    [RequirePermissions(Permissions.None, Permissions.ManageMessages)]
+    [RequirePermissions(DiscordPermissions.None, DiscordPermissions.ManageMessages)]
     public ValueTask RemoveAsync(CommandContext context, [Description("Which channel to stop listening for pings.")] DiscordChannel channel)
     {
         if (!this._database.IsRedirect(channel.Id))

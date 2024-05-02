@@ -21,6 +21,6 @@ public sealed class GuildDownloadCompletedEventHandler
         }
 
         this._logger.LogInformation("{GuildCount:N0} guilds are ready to go!", eventArgs.Guilds.Count);
-        return client.UpdateStatusAsync(new DiscordActivity("Messing around with your notifications...", ActivityType.Custom));
+        return client.UpdateStatusAsync(new DiscordActivity("Messing around with your notifications...", DiscordActivityType.Custom));
     }
 }

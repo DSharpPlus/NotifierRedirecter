@@ -11,24 +11,31 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace NotifierRedirecter.Events.Handlers;
 
-public sealed partial class MessageCreatedEventHandler
+public sealed partial class MessagesEventHandler
 {
-    private readonly ILogger<MessageCreatedEventHandler> _logger;
+    private readonly ILogger<MessagesEventHandler> _logger;
     private readonly UserActivityTracker _userActivityTracker;
     private readonly Database _database;
 
-    public MessageCreatedEventHandler(UserActivityTracker userActivityTracker, Database database, ILogger<MessageCreatedEventHandler>? logger = null)
+    public MessagesEventHandler(UserActivityTracker userActivityTracker, Database database, ILogger<MessagesEventHandler>? logger = null)
     {
         this._userActivityTracker = userActivityTracker ?? throw new ArgumentNullException(nameof(userActivityTracker));
         this._database = database ?? throw new ArgumentNullException(nameof(database));
-        this._logger = logger ?? NullLogger<MessageCreatedEventHandler>.Instance;
+        this._logger = logger ?? NullLogger<MessagesEventHandler>.Instance;
+    }
+
+    [DiscordEvent(DiscordIntents.GuildMessages)]
+    public Task ExecuteAsync(DiscordClient _, MessageUpdateEventArgs eventArgs)
+    {
+        this._userActivityTracker.UpdateUser(eventArgs.Author.Id, eventArgs.Channel.Id);
+        return Task.CompletedTask;
     }
 
     [DiscordEvent(DiscordIntents.GuildMessages | DiscordIntents.MessageContents)]
     public async Task ExecuteAsync(DiscordClient _, MessageCreateEventArgs eventArgs)
     {
         this._userActivityTracker.UpdateUser(eventArgs.Author.Id, eventArgs.Channel.Id);
-        bool shouldSilence = eventArgs.Message.Flags?.HasFlag(MessageFlags.SuppressNotifications) ?? false;
+        bool shouldSilence = eventArgs.Message.Flags?.HasFlag(DiscordMessageFlags.SuppressNotifications) ?? false;
 
         // Ensure the channel is a redirect channel
         if (eventArgs.Message.Channel is null || !this._database.IsRedirect(eventArgs.Message.Channel.Id))
